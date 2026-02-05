@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>迪特軍 EV 專業維修管理系統 v2.0</title>
+    <title>迪特軍 EV 專業維修管理系統 v2.3 (UI Fixed)</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -38,20 +38,37 @@
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.8); z-index: 100;
+            display: none; justify-content: center; align-items: center; flex-direction: column;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5;
+            border-radius: 50%; width: 40px; height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
         /* Print Overrides */
         @media print {
             body { background: white; overflow: visible; height: auto; }
             #sidebar, #top-nav, .no-print { display: none !important; }
             #main-content { margin: 0; padding: 0; width: 100%; height: auto; overflow: visible; }
             .print-only { display: block !important; }
-            /* Force print colors */
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
         }
         .print-only { display: none; }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex">
+
+    <!-- Loading -->
+    <div id="loading-overlay">
+        <div class="spinner mb-4"></div>
+        <p class="text-slate-600 font-bold animate-pulse" id="loading-text">資料同步中...</p>
+    </div>
 
     <!-- Sidebar -->
     <aside id="sidebar" class="w-64 bg-slate-900 text-slate-300 flex flex-col h-full transition-all duration-300 shadow-xl z-20">
@@ -61,7 +78,7 @@
             </div>
             <div>
                 <h1 class="text-white font-bold text-lg tracking-wide">迪特軍 EV</h1>
-                <p class="text-xs text-slate-500">專業維修管理 Pro</p>
+                <p class="text-xs text-slate-500">專業維修管理 Cloud</p>
             </div>
         </div>
 
@@ -88,8 +105,8 @@
             <div class="bg-slate-800 rounded-lg p-3 flex items-center gap-3">
                 <div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">A</div>
                 <div>
-                    <p class="text-sm text-white font-medium">管理員</p>
-                    <p class="text-xs text-green-400 flex items-center gap-1">● 線上運作中</p>
+                    <p class="text-sm text-white font-medium">電商神助手</p>
+                    <p class="text-xs text-green-400 flex items-center gap-1" id="connection-status">● 雲端連線中</p>
                 </div>
             </div>
         </div>
@@ -102,8 +119,8 @@
         <header id="top-nav" class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-sm z-10">
             <h2 id="page-title" class="text-xl font-bold text-slate-800">營運儀表板</h2>
             <div class="flex items-center gap-4">
-                <button onclick="app.syncData()" class="flex items-center gap-2 text-sm text-slate-500 hover:text-indigo-600 transition" title="備份資料">
-                    <i data-lucide="cloud-upload" width="18"></i> <span class="hidden md:inline">同步資料</span>
+                <button onclick="app.syncData(true)" class="flex items-center gap-2 text-sm text-slate-500 hover:text-indigo-600 transition" title="強制同步">
+                    <i data-lucide="refresh-cw" width="18"></i> <span class="hidden md:inline">重整資料</span>
                 </button>
                 <div class="h-6 w-px bg-slate-200"></div>
                 <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow-sm text-sm font-medium flex items-center gap-2 transition transform active:scale-95" onclick="app.quickAction()">
@@ -241,6 +258,24 @@
             
             <!-- VIEW: SETTINGS -->
             <div id="view-settings" class="hidden fade-in space-y-6 max-w-2xl mx-auto">
+                <div class="bg-white p-6 rounded-xl border border-indigo-200 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2 text-indigo-800">
+                        <i data-lucide="cloud" width="20"></i> 雲端同步設定 (Google Sheet)
+                    </h3>
+                    <div class="space-y-4">
+                        <p class="text-sm text-slate-600">目前系統已連線至您的電商神助手 Google Sheet 資料庫。</p>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Google Apps Script URL</label>
+                            <input type="text" id="setting-api-url" readonly class="w-full border rounded p-2 text-sm bg-slate-50 text-slate-500 focus:ring-0">
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="app.saveApiSettings()" class="hidden bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700 transition">儲存設定</button>
+                            <button onclick="app.initCloudSheets()" class="bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700 transition shadow-lg shadow-indigo-200" title="初次使用請點此建立資料表">★ 點此進行初次初始化 (建立工作表)</button>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2">* 初始化將在您的試算表中建立 Customers, Repairs, Inventory 三個工作表。若工作表已存在則不會影響。</p>
+                    </div>
+                </div>
+
                 <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                     <h3 class="text-lg font-bold mb-4">資料管理</h3>
                     <div class="space-y-4">
@@ -259,11 +294,6 @@
                             <button onclick="app.clearAllData()" class="text-red-600 hover:bg-red-50 px-3 py-1.5 rounded transition">清除重置</button>
                         </div>
                     </div>
-                </div>
-                 <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                    <h3 class="text-lg font-bold mb-4">系統資訊</h3>
-                    <p class="text-sm text-slate-600">版本：v2.0.1 (LocalStorage Edition)</p>
-                    <p class="text-sm text-slate-600 mt-1">開發者：電商神助手 (AI Generated)</p>
                 </div>
             </div>
 
@@ -337,7 +367,8 @@
                 <h3 class="text-lg font-bold">新增維修工單</h3>
                 <button type="button" onclick="document.getElementById('repair-modal').close()" class="text-indigo-200 hover:text-white"><i data-lucide="x"></i></button>
             </div>
-            <div class="p-6 bg-white space-y-4">
+            <!-- FIX: Added max-h and overflow-y-auto here -->
+            <div class="p-6 bg-white space-y-4 max-h-[70vh] overflow-y-auto">
                 <input type="hidden" name="customerId" id="repair-customer-id">
                 
                 <div class="flex items-center gap-3 bg-indigo-50 p-3 rounded-lg border border-indigo-100">
@@ -392,42 +423,186 @@
             </div>
         </form>
     </dialog>
+    
+    <!-- MODAL: ADD INVENTORY -->
+    <dialog id="inventory-modal" class="backdrop:bg-slate-900/50 rounded-xl shadow-2xl p-0 w-full max-w-md overflow-hidden">
+        <form id="inventory-form" onsubmit="event.preventDefault(); app.saveInventory();">
+            <div class="bg-slate-800 text-white px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-bold">新增庫存零件</h3>
+                <button type="button" onclick="document.getElementById('inventory-modal').close()" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+            </div>
+            <!-- FIX: Added max-h and overflow-y-auto here too -->
+            <div class="p-6 bg-white space-y-4 max-h-[70vh] overflow-y-auto">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">零件名稱 *</label>
+                    <input type="text" name="name" required class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">類別</label>
+                    <select name="category" class="w-full border rounded p-2 bg-white focus:ring-2 focus:ring-indigo-500">
+                         <option value="tire">輪胎 (Tire)</option>
+                         <option value="battery">電池/電系 (Battery)</option>
+                         <option value="oil">油品/耗材 (Oil/Consumables)</option>
+                         <option value="other">其他 (Other)</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">目前庫存</label>
+                        <input type="number" name="stock" value="0" class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">單價 ($)</label>
+                        <input type="number" name="price" value="0" class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-6 py-4 flex justify-end gap-3 border-t">
+                 <button type="button" onclick="document.getElementById('inventory-modal').close()" class="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded transition">取消</button>
+                <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded shadow hover:bg-slate-700 transition">儲存零件</button>
+            </div>
+        </form>
+    </dialog>
 
     <!-- JS Logic -->
     <script>
-        // --- Data Store (LocalStorage Wrapper) ---
+        // --- API Module ---
+        const API = {
+            // 已內建您的部署網址
+            url: 'https://script.google.com/macros/s/AKfycbwoMdmxz7tkgrKTvHx2AnO2lPookVs5m36fopxTqpbW1RKKJcIpgJwEHRLyvzOR34Kq/exec',
+            
+            init() {
+                // 如果本地沒有儲存過，就使用預設的（您提供的）URL
+                const savedUrl = localStorage.getItem('diter_ev_api_url');
+                if (savedUrl) {
+                    this.url = savedUrl;
+                } else {
+                    localStorage.setItem('diter_ev_api_url', this.url);
+                }
+                this.updateStatus();
+            },
+
+            set(url) {
+                this.url = url;
+                localStorage.setItem('diter_ev_api_url', url);
+                this.updateStatus();
+            },
+
+            updateStatus() {
+                const el = document.getElementById('connection-status');
+                const btn = document.getElementById('setting-api-url');
+                if(btn) btn.value = this.url;
+                
+                if (this.url) {
+                    el.innerHTML = '<span class="text-green-400">●</span> 雲端連線中';
+                    el.className = "text-xs text-green-400 flex items-center gap-1 font-bold";
+                } else {
+                    el.innerHTML = '<span class="text-slate-500">●</span> 本地模式';
+                    el.className = "text-xs text-slate-500 flex items-center gap-1";
+                }
+            },
+
+            async call(action, payload = {}) {
+                if (!this.url) return null;
+                
+                // Show loading
+                const loader = document.getElementById('loading-overlay');
+                const loaderText = document.getElementById('loading-text');
+                if (loader && (action === 'read' || action === 'setup')) {
+                    loader.style.display = 'flex';
+                    loaderText.innerText = action === 'read' ? '資料同步中...' : '系統初始化中...';
+                }
+
+                try {
+                    // Use POST for everything to handle payloads easier
+                    const response = await fetch(this.url, {
+                        method: 'POST',
+                        redirect: 'follow',
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
+                        body: JSON.stringify({ action, ...payload })
+                    });
+                    const data = await response.json();
+                    return data;
+                } catch (err) {
+                    console.error("API Error", err);
+                    return { status: 'error', message: err.message };
+                } finally {
+                    if (loader) loader.style.display = 'none';
+                }
+            }
+        };
+
+        // --- Data Store (LocalStorage + Cloud Sync) ---
         const Store = {
             db: {
                 customers: [],
                 inventory: [],
                 repairs: [],
-                settings: {
-                    shopName: "迪特軍 EV",
-                    lastSync: null
-                }
+                settings: { shopName: "迪特軍 EV" }
             },
-            init() {
+            
+            async init() {
+                API.init();
+                
+                // 1. Load Local first for speed
                 const saved = localStorage.getItem('diter_ev_db');
                 if (saved) {
                     this.db = JSON.parse(saved);
+                    // Ensure arrays exist
+                    if(!this.db.customers) this.db.customers = [];
+                    if(!this.db.inventory) this.db.inventory = [];
+                    if(!this.db.repairs) this.db.repairs = [];
                 } else {
-                    // Seed Data for Demo
                     this.seed();
                 }
+
+                // 2. If API Connected, Sync Down
+                if (API.url) {
+                    await this.syncFromCloud();
+                }
             },
+
             save() {
                 localStorage.setItem('diter_ev_db', JSON.stringify(this.db));
                 app.updateStats();
             },
+
+            async syncFromCloud() {
+                const res = await API.call('read');
+                if (res && res.status === 'success' && res.data) {
+                    // Merge or Replace? For simplicity in this app, Cloud is Truth.
+                    this.db.customers = res.data.customers || [];
+                    this.db.repairs = res.data.repairs || [];
+                    this.db.inventory = res.data.inventory || [];
+                    this.save(); // update local cache
+                    console.log("Cloud synced");
+                    
+                    // Refresh current view
+                    app.nav(app.currentView);
+                    app.updateStats();
+                }
+            },
+
+            // Upsert specific record to cloud
+            async upsertToCloud(table, data) {
+                if(API.url) {
+                    // Don't await this to keep UI fast (Optimistic UI)
+                    // But in production, you might want error handling toast
+                    API.call('upsert', { table, data }).then(res => {
+                        console.log(`${table} saved to cloud`, res);
+                    });
+                }
+            },
+            
             seed() {
-                this.db.customers = [
-                    { id: 'c1', name: '王小明', phone: '0912345678', model: 'Gogoro 2', plate: 'ABC-1234', vin: 'G2-998877', purchaseDate: '2024-01-10', notes: 'VIP 客戶' },
-                    { id: 'c2', name: '林美麗', phone: '0988777666', model: 'Ai-1 Sport', plate: 'XYZ-5678', vin: 'A1-556677', purchaseDate: '2023-05-20', notes: '' }
-                ];
-                this.db.inventory = [
-                    { id: 'p1', name: '米其林 City Grip 2 (前)', category: 'tire', stock: 4, price: 2200 },
-                    { id: 'p2', name: '原廠煞車皮', category: 'other', stock: 10, price: 450 }
-                ];
+                // Initial empty data or examples if you prefer
+                // Left empty here so it pulls from cloud or starts fresh
+                // If cloud is empty, these will be used.
+                if(this.db.customers.length === 0) {
+                     this.db.customers = [
+                        { id: 'c1', name: '範例客戶', phone: '0912345678', model: 'Gogoro 2', plate: 'ABC-1234', vin: '', purchaseDate: '2025-01-01', notes: '這是測試資料' }
+                    ];
+                }
                 this.save();
             }
         };
@@ -436,13 +611,11 @@
         const app = {
             currentView: 'dashboard',
             
-            init() {
-                Store.init();
+            async init() {
+                await Store.init();
                 lucide.createIcons();
                 this.nav('dashboard');
                 this.updateStats();
-                
-                // Inventory Filter Init
                 this.renderInventory();
             },
 
@@ -465,7 +638,6 @@
                 document.getElementById(`view-${viewId}`).classList.remove('hidden');
                 this.currentView = viewId;
 
-                // Set Title
                 const titles = {
                     'dashboard': '營運儀表板',
                     'customers': '客戶與車籍管理',
@@ -475,7 +647,6 @@
                 };
                 document.getElementById('page-title').innerText = titles[viewId];
 
-                // Trigger Renderers
                 if(viewId === 'dashboard') this.renderDashboard();
                 if(viewId === 'customers') this.renderCustomers();
                 if(viewId === 'repairs') this.renderRepairs();
@@ -486,7 +657,6 @@
 
             // --- Stats & Dashboard ---
             updateStats() {
-                // Calculate Revenue (This month)
                 const now = new Date();
                 const thisMonth = now.getMonth();
                 const totalRev = Store.db.repairs.reduce((acc, curr) => {
@@ -505,7 +675,6 @@
                 document.getElementById('stat-customers').innerText = Store.db.customers.length;
                 document.getElementById('stat-lowstock').innerText = lowStockCount;
 
-                // Badge Update
                 const badge = document.getElementById('badge-repair');
                 if (repairingCount > 0) {
                     badge.innerText = repairingCount;
@@ -519,7 +688,6 @@
                 const tbody = document.getElementById('dashboard-activity-list');
                 tbody.innerHTML = '';
                 
-                // Get last 5 repairs
                 const recents = [...Store.db.repairs].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
                 
                 if (recents.length === 0) {
@@ -557,7 +725,6 @@
                 );
 
                 filtered.forEach(c => {
-                    // Find last repair
                     const cRepairs = Store.db.repairs.filter(r => r.customerId === c.id).sort((a,b) => new Date(b.date) - new Date(a.date));
                     const lastDate = cRepairs.length > 0 ? new Date(cRepairs[0].date).toLocaleDateString() : '無紀錄';
 
@@ -591,6 +758,9 @@
                     document.getElementById('modal-title').innerText = '新增客戶資料';
                     document.querySelector('[name="id"]').value = '';
                 }
+                if(id === 'inventory-modal') {
+                    document.getElementById('inventory-form').reset();
+                }
             },
 
             saveCustomer() {
@@ -607,6 +777,9 @@
                 }
                 
                 Store.save();
+                // Cloud Sync
+                Store.upsertToCloud('Customers', data);
+                
                 document.getElementById('customer-modal').close();
                 this.renderCustomers();
                 this.updateStats();
@@ -637,7 +810,6 @@
                 document.getElementById('repair-customer-id').value = c.id;
                 document.getElementById('repair-customer-name').innerText = `${c.name} (${c.model})`;
                 document.getElementById('repair-form').reset();
-                // set default values
                 document.querySelector('[name="partsCost"]').value = 0;
                 document.querySelector('[name="laborCost"]').value = 0;
                 document.getElementById('repair-total-display').innerText = '$0';
@@ -672,12 +844,14 @@
                 
                 Store.db.repairs.push(record);
                 Store.save();
+                // Cloud Sync
+                Store.upsertToCloud('Repairs', record);
+
                 document.getElementById('repair-modal').close();
-                this.nav('repairs'); // switch to repairs view
+                this.nav('repairs'); 
             },
 
             renderRepairs() {
-                // Just calling filterRepairs('all') to render initial state
                 this.filterRepairs('all');
             },
 
@@ -689,7 +863,6 @@
                 if (status !== 'all') {
                     list = list.filter(r => r.status === status);
                 }
-                // Sort by date desc
                 list.sort((a,b) => new Date(b.date) - new Date(a.date));
 
                 if (list.length === 0) {
@@ -737,14 +910,38 @@
                 const idx = Store.db.repairs.findIndex(r => r.id === id);
                 if (idx !== -1) {
                     if(confirm("確定要將此工單標記為完工？")) {
-                        Store.db.repairs[idx].status = 'completed';
+                        const r = Store.db.repairs[idx];
+                        r.status = 'completed';
                         Store.save();
+                        Store.upsertToCloud('Repairs', r);
                         this.filterRepairs('all');
                     }
                 }
             },
 
-            // --- Inventory Logic (Simple) ---
+            // --- Inventory Logic ---
+            saveInventory() {
+                const form = document.getElementById('inventory-form');
+                const fd = new FormData(form);
+                const data = Object.fromEntries(fd.entries());
+                
+                const item = {
+                    id: 'p' + Date.now(),
+                    name: data.name,
+                    category: data.category,
+                    stock: parseInt(data.stock)||0,
+                    price: parseInt(data.price)||0
+                };
+                
+                Store.db.inventory.push(item);
+                Store.save();
+                Store.upsertToCloud('Inventory', item);
+                
+                document.getElementById('inventory-modal').close();
+                this.renderInventory();
+                this.updateStats();
+            },
+
             renderInventory() {
                 const container = document.getElementById('inventory-grid');
                 container.innerHTML = '';
@@ -753,8 +950,6 @@
                 let list = Store.db.inventory;
                 if (filter !== 'all') list = list.filter(i => i.category === filter);
 
-                // Always add "Add Card" at end if needed, but we have header button
-                
                 list.forEach(item => {
                     const isLow = item.stock <= 2;
                     const card = document.createElement('div');
@@ -787,13 +982,38 @@
                     item.stock += amount;
                     if(item.stock < 0) item.stock = 0;
                     Store.save();
+                    Store.upsertToCloud('Inventory', item); // Sync
                     this.renderInventory();
                 }
             },
 
             // --- System Actions ---
+            saveApiSettings() {
+                const url = document.getElementById('setting-api-url').value.trim();
+                API.set(url);
+                this.syncData();
+            },
+
+            async initCloudSheets() {
+                if(!API.url) { alert('請先輸入 API URL'); return; }
+                const res = await API.call('setup');
+                if(res.status === 'success') {
+                    alert('初始化成功！工作表已建立。');
+                } else {
+                    alert('初始化失敗: ' + res.message);
+                }
+            },
+
+            async syncData(force = false) {
+                if(!API.url) {
+                    alert("請先在系統設定中輸入 Google Apps Script URL");
+                    this.nav('settings');
+                    return;
+                }
+                await Store.syncFromCloud();
+            },
+
             quickAction() {
-                // Determine context or ask
                 this.openModal('customer-modal');
             },
             
@@ -814,16 +1034,10 @@
                     localStorage.removeItem('diter_ev_db');
                     location.reload();
                 }
-            },
-
-            syncData() {
-                alert("功能提示：此版本為 Pro 單機版，資料目前安全儲存於此瀏覽器中。\n\n如需啟用 Google Sheet 多裝置雲端同步功能，請聯絡開發人員配置 API Endpoint。");
             }
         };
 
-        // Boot
         window.onload = () => app.init();
-
     </script>
 </body>
 </html>
