@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>迪特軍維修管理系統</title>
+    <title>迪特軍 EV 專業維修管理系統 v2.0</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -11,989 +11,819 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- html2canvas for Image Generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Chart.js for Simple Stats -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Print Styles */
-        @media print {
-            body {
-                background-color: white;
-                margin: 0;
-                padding: 0;
-            }
-            .no-print {
-                display: none !important;
-            }
-            .print-wrapper { 
-                position: static !important; 
-                overflow: visible !important; 
-                height: auto !important; 
-                width: 100% !important; 
-                display: block !important; 
-                background: white !important; 
-                z-index: 9999;
-            }
-            .print-content { 
-                margin: 0 auto !important; 
-                padding: 0 !important; 
-                width: 210mm !important; 
-                min-height: 297mm !important; 
-                transform: scale(0.95); 
-                transform-origin: top center; 
-                box-shadow: none !important; 
-                border: none !important; 
-            }
-            @page { 
-                size: A4 portrait; 
-                margin: 0; 
-            }
+        :root {
+            --primary: #4f46e5; /* Indigo 600 */
+            --bg-sidebar: #0f172a; /* Slate 900 */
         }
-
-        /* Utility for print overlay */
-        #print-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #f3f4f6;
-            z-index: 50;
-            overflow-y: auto;
-            display: none; /* Hidden by default */
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f3f4f6;
+            overflow: hidden; /* App-like feel */
         }
         
-        #print-overlay.active {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Animations */
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Print Overrides */
+        @media print {
+            body { background: white; overflow: visible; height: auto; }
+            #sidebar, #top-nav, .no-print { display: none !important; }
+            #main-content { margin: 0; padding: 0; width: 100%; height: auto; overflow: visible; }
+            .print-only { display: block !important; }
+            /* Force print colors */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
+        .print-only { display: none; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900 font-sans">
+<body class="text-slate-800 h-screen flex">
 
-    <!-- Navigation -->
-    <nav class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-40 no-print">
-        <div class="flex items-center gap-2">
-            <div class="bg-indigo-600 text-white p-1.5 rounded-lg">
-                <i data-lucide="wrench" width="20" height="20"></i>
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-slate-900 text-slate-300 flex flex-col h-full transition-all duration-300 shadow-xl z-20">
+        <div class="p-6 flex items-center gap-3 border-b border-slate-800">
+            <div class="bg-indigo-600 text-white p-2 rounded-lg shadow-lg shadow-indigo-500/30">
+                <i data-lucide="zap" width="24" height="24"></i>
             </div>
-            <span class="font-bold text-xl tracking-tight">迪特軍 <span class="text-gray-400 font-normal text-sm ml-1">維修管理系統</span></span>
-        </div>
-        <div class="flex items-center gap-4">
-            <button onclick="window.app.openImportModal()" class="text-gray-500 hover:text-indigo-600 text-sm flex items-center gap-1">
-                <i data-lucide="upload" width="16" height="16"></i> 匯入資料
-            </button>
-            <button onclick="window.app.exportToCSV()" class="text-gray-500 hover:text-indigo-600 text-sm flex items-center gap-1">
-                <i data-lucide="download" width="16" height="16"></i> 匯出資料表
-            </button>
-            <div class="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500">
-                <i data-lucide="user" width="18" height="18"></i>
+            <div>
+                <h1 class="text-white font-bold text-lg tracking-wide">迪特軍 EV</h1>
+                <p class="text-xs text-slate-500">專業維修管理 Pro</p>
             </div>
         </div>
-    </nav>
 
-    <!-- Main Content -->
-    <main class="max-w-6xl mx-auto p-6 no-print">
+        <nav class="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+            <button onclick="app.nav('dashboard')" id="nav-dashboard" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition active text-indigo-400 bg-slate-800">
+                <i data-lucide="layout-dashboard" width="20"></i> 營運儀表板
+            </button>
+            <button onclick="app.nav('customers')" id="nav-customers" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition">
+                <i data-lucide="users" width="20"></i> 客戶與車籍
+            </button>
+            <button onclick="app.nav('repairs')" id="nav-repairs" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition">
+                <i data-lucide="wrench" width="20"></i> 維修工單
+                <span id="badge-repair" class="ml-auto bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded-full hidden">0</span>
+            </button>
+            <button onclick="app.nav('inventory')" id="nav-inventory" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition">
+                <i data-lucide="package" width="20"></i> 零件庫存
+            </button>
+            <button onclick="app.nav('settings')" id="nav-settings" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition">
+                <i data-lucide="settings" width="20"></i> 系統設定
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-slate-800">
+            <div class="bg-slate-800 rounded-lg p-3 flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">A</div>
+                <div>
+                    <p class="text-sm text-white font-medium">管理員</p>
+                    <p class="text-xs text-green-400 flex items-center gap-1">● 線上運作中</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col h-full relative overflow-hidden">
         
-        <!-- View: List -->
-        <div id="view-list" class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="md:col-span-3 bg-white p-2 rounded-lg border border-gray-200 shadow-sm flex items-center">
-                    <i data-lucide="search" class="text-gray-400 ml-2" width="20" height="20"></i>
-                    <input type="text" id="search-input" placeholder="輸入客戶電話、姓名或車身序號搜尋..." class="w-full p-2 outline-none text-gray-700" oninput="window.app.handleSearch(this.value)">
-                </div>
-                <button onclick="window.app.startAddCustomer()" class="bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 flex items-center justify-center gap-2 font-medium transition py-2">
-                    <i data-lucide="plus" width="18" height="18"></i> 新增客戶
+        <!-- Top Navigation -->
+        <header id="top-nav" class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-sm z-10">
+            <h2 id="page-title" class="text-xl font-bold text-slate-800">營運儀表板</h2>
+            <div class="flex items-center gap-4">
+                <button onclick="app.syncData()" class="flex items-center gap-2 text-sm text-slate-500 hover:text-indigo-600 transition" title="備份資料">
+                    <i data-lucide="cloud-upload" width="18"></i> <span class="hidden md:inline">同步資料</span>
+                </button>
+                <div class="h-6 w-px bg-slate-200"></div>
+                <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow-sm text-sm font-medium flex items-center gap-2 transition transform active:scale-95" onclick="app.quickAction()">
+                    <i data-lucide="plus" width="18"></i> 快速新增
                 </button>
             </div>
+        </header>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full text-left">
-                        <thead class="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
+        <!-- Content Container -->
+        <div id="main-content" class="flex-1 overflow-y-auto p-6 scroll-smooth bg-slate-50">
+            
+            <!-- VIEW: DASHBOARD -->
+            <div id="view-dashboard" class="space-y-6 fade-in">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 relative overflow-hidden group hover:border-indigo-200 transition">
+                        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition text-indigo-600"><i data-lucide="dollar-sign" width="60" height="60"></i></div>
+                        <p class="text-slate-500 text-sm font-medium">本月總營收</p>
+                        <h3 class="text-2xl font-bold text-slate-800 mt-1" id="stat-revenue">$0</h3>
+                        <p class="text-green-600 text-xs mt-2 flex items-center gap-1"><i data-lucide="trending-up" width="12"></i> 較上月成長</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 relative overflow-hidden group hover:border-orange-200 transition">
+                        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition text-orange-500"><i data-lucide="wrench" width="60" height="60"></i></div>
+                        <p class="text-slate-500 text-sm font-medium">維修中車輛</p>
+                        <h3 class="text-2xl font-bold text-slate-800 mt-1" id="stat-repairing">0</h3>
+                        <p class="text-orange-600 text-xs mt-2">目前工單</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 relative overflow-hidden group hover:border-blue-200 transition">
+                        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition text-blue-500"><i data-lucide="users" width="60" height="60"></i></div>
+                        <p class="text-slate-500 text-sm font-medium">活躍客戶數</p>
+                        <h3 class="text-2xl font-bold text-slate-800 mt-1" id="stat-customers">0</h3>
+                        <p class="text-slate-400 text-xs mt-2">累積建檔</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 relative overflow-hidden group hover:border-red-200 transition">
+                        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition text-red-500"><i data-lucide="alert-triangle" width="60" height="60"></i></div>
+                        <p class="text-slate-500 text-sm font-medium">庫存低水位</p>
+                        <h3 class="text-2xl font-bold text-slate-800 mt-1" id="stat-lowstock">0</h3>
+                        <p class="text-red-500 text-xs mt-2">項零件需補貨</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Recent Activity -->
+                    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                        <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i data-lucide="clock" class="text-indigo-600" width="18"></i> 近期活動紀錄</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                                    <tr>
+                                        <th class="px-4 py-3">時間</th>
+                                        <th class="px-4 py-3">類型</th>
+                                        <th class="px-4 py-3">客戶/項目</th>
+                                        <th class="px-4 py-3 text-right">金額/狀態</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-activity-list" class="divide-y divide-slate-100">
+                                    <!-- JS Populated -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Today's Tasks / Reminders -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                        <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i data-lucide="calendar" class="text-orange-500" width="18"></i> 今日提醒</h3>
+                        <div id="dashboard-tasks" class="space-y-3">
+                            <!-- JS Populated -->
+                            <div class="p-3 bg-slate-50 rounded-lg text-sm text-slate-500 text-center">今日無特殊待辦事項</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: CUSTOMERS -->
+            <div id="view-customers" class="hidden fade-in space-y-4">
+                <div class="flex flex-col md:flex-row justify-between gap-4">
+                    <div class="relative flex-1 max-w-md">
+                        <i data-lucide="search" class="absolute left-3 top-2.5 text-slate-400" width="20"></i>
+                        <input type="text" id="customer-search" oninput="app.renderCustomers()" placeholder="搜尋姓名、電話、車牌或 VIN..." class="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    </div>
+                    <button onclick="app.openModal('customer-modal')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg shadow hover:bg-indigo-700 transition flex items-center gap-2">
+                        <i data-lucide="user-plus" width="18"></i> 新增客戶
+                    </button>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
                             <tr>
-                                <th class="px-6 py-3 text-sm">類別</th>
-                                <th class="px-6 py-3 text-sm">客戶姓名</th>
-                                <th class="px-6 py-3 text-sm">電話</th>
-                                <th class="px-6 py-3 text-sm">車型</th>
-                                <th class="px-6 py-3 text-sm">保固狀態</th>
-                                <th class="px-6 py-3 text-sm text-right">操作</th>
+                                <th class="px-6 py-4">客戶姓名</th>
+                                <th class="px-6 py-4">車輛資訊</th>
+                                <th class="px-6 py-4">聯絡電話</th>
+                                <th class="px-6 py-4">最近一次服務</th>
+                                <th class="px-6 py-4 text-right">操作</th>
                             </tr>
                         </thead>
-                        <tbody id="customer-list-body" class="divide-y divide-gray-100">
-                            <!-- JS will populate rows here -->
-                            <tr><td colspan="6" class="text-center py-8">載入中...</td></tr>
-                        </tbody>
+                        <tbody id="customer-list-body" class="divide-y divide-slate-100"></tbody>
                     </table>
                 </div>
             </div>
-        </div>
 
-        <!-- View: Form (Add/Edit) -->
-        <div id="view-form" class="hidden bg-white p-6 rounded-xl shadow border border-gray-200 animate-in fade-in slide-in-from-top-4 duration-300">
-            <div class="flex justify-between mb-4">
-                <h2 id="form-title" class="text-lg font-bold">建立新客戶資料</h2>
-                <button onclick="window.app.setView('list')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" width="20" height="20"></i></button>
-            </div>
-            <form id="customer-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Category -->
-                <div class="md:col-span-2 bg-gray-50 p-3 rounded-lg flex gap-4 items-center">
-                    <span class="text-sm font-medium text-gray-700">客戶類別：</span>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="category" value="purchase" class="text-indigo-600 focus:ring-indigo-500" checked>
-                        <span class="text-sm text-gray-900">購車客戶 (含完整保固)</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="category" value="repair" class="text-indigo-600 focus:ring-indigo-500">
-                        <span class="text-sm text-gray-900">純維修客戶</span>
-                    </label>
+            <!-- VIEW: REPAIRS (Work Orders) -->
+            <div id="view-repairs" class="hidden fade-in space-y-4">
+                 <div class="flex gap-2 overflow-x-auto pb-2">
+                    <button onclick="app.filterRepairs('all')" class="px-4 py-1.5 rounded-full text-sm font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition">全部</button>
+                    <button onclick="app.filterRepairs('pending')" class="px-4 py-1.5 rounded-full text-sm font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition">待修中</button>
+                    <button onclick="app.filterRepairs('fixing')" class="px-4 py-1.5 rounded-full text-sm font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition">維修中</button>
+                    <button onclick="app.filterRepairs('completed')" class="px-4 py-1.5 rounded-full text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 transition">已完工</button>
                 </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">客戶電話 (ID)</label>
-                    <input type="tel" name="phone" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="0912345678">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">客戶姓名</label>
-                    <input type="text" name="name" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">車輛型號</label>
-                    <input type="text" name="model" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="例如: Gogoro 2, Ai-1">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">車身序號 (VIN)</label>
-                    <input type="text" name="vin" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">規格/顏色</label>
-                    <input type="text" name="specs" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">交車金額</label>
-                    <input type="number" name="price" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                </div>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">購車日期</label>
-                        <input type="date" name="purchaseDate" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">保固天數</label>
-                        <input type="number" name="warrantyDays" required value="365" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                </div>
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">備註</label>
-                    <textarea name="notes" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none h-20"></textarea>
-                </div>
-                <div class="md:col-span-2 flex justify-end gap-2 mt-2">
-                    <button type="button" onclick="window.app.setView('list')" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
-                    <button type="submit" class="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 flex items-center gap-2">
-                        <i data-lucide="save" width="16" height="16"></i> <span id="form-submit-text">儲存資料</span>
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- View: Detail -->
-        <div id="view-detail" class="hidden space-y-6">
-            <div class="flex items-center justify-between">
-                <button onclick="window.app.setView('list')" class="flex items-center text-gray-600 hover:text-gray-900">
-                    <i data-lucide="chevron-left" width="20" height="20"></i> 返回列表
-                </button>
-                <div class="flex gap-2">
-                    <button onclick="window.app.startEditCustomer()" class="flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition" title="編輯資料">
-                        <i data-lucide="pencil" width="18" height="18"></i>
-                    </button>
-                    <button onclick="window.app.promptDeleteCustomer()" class="flex items-center gap-2 bg-red-50 text-red-600 px-3 py-2 rounded-lg hover:bg-red-100 transition" title="刪除客戶">
-                        <i data-lucide="trash-2" width="18" height="18"></i>
-                    </button>
-                    <div class="w-px h-8 bg-gray-300 mx-1"></div>
-                    <button onclick="window.app.showPrintPreview('receipt')" class="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition shadow-sm">
-                        <i data-lucide="file-signature" width="18" height="18"></i> 交車簽收單
-                    </button>
-                    <button onclick="window.app.showPrintPreview('warranty')" class="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition shadow-sm">
-                        <i data-lucide="printer" width="18" height="18"></i> 保固卡
-                    </button>
+                <div class="grid grid-cols-1 gap-4" id="repair-kanban">
+                    <!-- Rendered via JS -->
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Info Card -->
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
-                    <div id="detail-category-tag" class="absolute top-0 right-0 px-4 py-1 rounded-bl-xl text-sm font-bold"></div>
-                    <div class="flex justify-between items-start mb-4 mt-2">
-                        <div>
-                            <h2 id="detail-name" class="text-2xl font-bold text-gray-800"></h2>
-                            <p id="detail-phone" class="text-gray-500 font-mono text-lg"></p>
+            <!-- VIEW: INVENTORY -->
+            <div id="view-inventory" class="hidden fade-in space-y-4">
+                <div class="flex justify-between items-center">
+                    <div class="bg-white p-2 rounded-lg border border-slate-200 flex items-center gap-2">
+                        <i data-lucide="filter" class="text-slate-400" width="16"></i>
+                        <select class="outline-none text-sm bg-transparent" id="inventory-filter" onchange="app.renderInventory()">
+                            <option value="all">所有類別</option>
+                            <option value="tire">輪胎</option>
+                            <option value="battery">電池/電系</option>
+                            <option value="oil">油品/耗材</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <button onclick="app.openModal('inventory-modal')" class="bg-slate-800 text-white px-4 py-2 rounded-lg shadow hover:bg-slate-700 transition flex items-center gap-2">
+                        <i data-lucide="plus" width="18"></i> 新增零件
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="inventory-grid">
+                    <!-- Rendered via JS -->
+                </div>
+            </div>
+            
+            <!-- VIEW: SETTINGS -->
+            <div id="view-settings" class="hidden fade-in space-y-6 max-w-2xl mx-auto">
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4">資料管理</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center border-b pb-4">
+                            <div>
+                                <p class="font-medium">匯出資料 (Backup)</p>
+                                <p class="text-xs text-slate-500">下載所有客戶與維修紀錄為 CSV 格式</p>
+                            </div>
+                            <button onclick="app.exportCSV()" class="text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded transition">下載 CSV</button>
+                        </div>
+                        <div class="flex justify-between items-center border-b pb-4">
+                            <div>
+                                <p class="font-medium">清除所有資料</p>
+                                <p class="text-xs text-red-400">危險操作：這將清空瀏覽器中的所有紀錄</p>
+                            </div>
+                            <button onclick="app.clearAllData()" class="text-red-600 hover:bg-red-50 px-3 py-1.5 rounded transition">清除重置</button>
                         </div>
                     </div>
-                    <div class="space-y-2 text-sm text-gray-600" id="detail-info-grid">
-                        <!-- Info populated by JS -->
-                    </div>
                 </div>
-
-                <!-- Add Record Form -->
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <i data-lucide="wrench" class="text-indigo-600" width="18" height="18"></i> 新增維修/保養紀錄
-                    </h3>
-                    <form id="record-form" class="space-y-4">
-                        <div class="grid grid-cols-3 gap-2">
-                            <button type="button" class="record-type-btn p-2 rounded border text-sm flex flex-col items-center justify-center gap-1 border-gray-200 hover:bg-gray-50" data-type="regular" onclick="window.app.setRecordType('regular')">
-                                <i data-lucide="calendar" width="16" height="16"></i> 定期保養
-                            </button>
-                            <button type="button" class="record-type-btn p-2 rounded border text-sm flex flex-col items-center justify-center gap-1 border-gray-200 hover:bg-gray-50" data-type="battery" onclick="window.app.setRecordType('battery')">
-                                <i data-lucide="battery" width="16" height="16"></i> 更換電池
-                            </button>
-                            <button type="button" class="record-type-btn p-2 rounded border text-sm flex flex-col items-center justify-center gap-1 border-gray-200 hover:bg-gray-50" data-type="repair" onclick="window.app.setRecordType('repair')">
-                                <i data-lucide="wrench" width="16" height="16"></i> 故障維修
-                            </button>
-                        </div>
-                        <input type="hidden" id="record-type-input" value="regular">
-                        <textarea id="record-note" placeholder="維修備註、更換項目、里程數..." required class="w-full border border-gray-300 rounded-lg p-2 text-sm h-20 focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
-                        <button type="submit" class="w-full bg-gray-900 text-white py-2 rounded-lg hover:bg-black transition">儲存紀錄</button>
-                    </form>
+                 <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4">系統資訊</h3>
+                    <p class="text-sm text-slate-600">版本：v2.0.1 (LocalStorage Edition)</p>
+                    <p class="text-sm text-slate-600 mt-1">開發者：電商神助手 (AI Generated)</p>
                 </div>
             </div>
 
-            <!-- History List -->
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 class="font-bold text-gray-800 mb-4">服務歷史紀錄</h3>
-                <div class="overflow-hidden">
-                    <table class="min-w-full text-sm text-left">
-                        <thead class="bg-gray-50 text-gray-500">
-                            <tr>
-                                <th class="px-4 py-2">日期</th>
-                                <th class="px-4 py-2">類型</th>
-                                <th class="px-4 py-2">內容</th>
-                                <th class="px-4 py-2 text-right w-20">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="history-list-body" class="divide-y divide-gray-100">
-                            <!-- Records populated by JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
-
     </main>
 
-    <!-- Print Overlay -->
-    <div id="print-overlay">
-        <!-- Control Bar -->
-        <div class="w-full bg-gray-900 text-white p-4 flex justify-between items-center sticky top-0 shadow-md z-50 no-print">
-            <button onclick="window.app.closePrintPreview()" class="flex items-center gap-2 hover:text-gray-300 transition font-bold">
-                <i data-lucide="arrow-left" width="20" height="20"></i> 返回系統
-            </button>
-            <div class="text-sm flex items-center gap-4">
-                <button onclick="window.app.downloadPrintImage()" id="btn-download-img" class="bg-green-600 px-4 py-2 rounded hover:bg-green-500 transition cursor-pointer select-none active:scale-95 flex items-center gap-2 font-bold disabled:opacity-50">
-                    <i data-lucide="image" width="18" height="18"></i> 下載圖片
-                </button>
-                <button onclick="window.print()" class="bg-indigo-600 px-4 py-2 rounded hover:bg-indigo-500 transition cursor-pointer select-none active:scale-95 flex items-center gap-2">
-                    <i data-lucide="printer" width="18" height="18"></i> 列印
-                </button>
+    <!-- MODAL: ADD/EDIT CUSTOMER -->
+    <dialog id="customer-modal" class="backdrop:bg-slate-900/50 rounded-xl shadow-2xl p-0 w-full max-w-3xl overflow-hidden">
+        <form id="customer-form" onsubmit="event.preventDefault(); app.saveCustomer();">
+            <div class="bg-slate-800 text-white px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-bold" id="modal-title">新增客戶資料</h3>
+                <button type="button" onclick="document.getElementById('customer-modal').close()" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
             </div>
-        </div>
-        
-        <!-- Print Content Container (A4) -->
-        <div class="flex-1 w-full flex justify-center p-8 overflow-visible">
-            <div id="print-content-node" class="print-content bg-white shadow-2xl relative" style="width: 210mm; min-height: 297mm; padding: 15mm;">
-                <!-- Content injected here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Modals -->
-    <dialog id="confirm-modal" class="rounded-lg p-0 shadow-xl backdrop:bg-black/50">
-        <div class="bg-white p-6 max-w-sm w-full">
-            <h3 id="confirm-title" class="text-lg font-bold mb-2 text-gray-900">確認</h3>
-            <p id="confirm-message" class="text-gray-600 mb-6"></p>
-            <div class="flex justify-end gap-3">
-                <button onclick="document.getElementById('confirm-modal').close()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">取消</button>
-                <button id="confirm-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-sm transition">確認刪除</button>
-            </div>
-        </div>
-    </dialog>
-
-    <dialog id="import-modal" class="rounded-xl p-0 shadow-2xl backdrop:bg-black/50 w-full max-w-2xl">
-        <div class="bg-white p-6">
-            <div class="flex justify-between items-center mb-6 border-b pb-4">
-                <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <i data-lucide="upload" class="text-indigo-600"></i> 批次匯入客戶資料
-                </h3>
-                <button onclick="document.getElementById('import-modal').close()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x"></i></button>
-            </div>
-            <div class="space-y-6">
-                <div class="bg-blue-50 p-4 rounded-lg flex justify-between items-center">
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-white max-h-[70vh] overflow-y-auto">
+                <!-- Basic Info -->
+                <div class="space-y-4">
+                    <h4 class="font-bold text-slate-800 border-b pb-2 text-sm">基本資料</h4>
                     <div>
-                        <p class="text-sm font-bold text-blue-800 mb-1">步驟 1：下載範本</p>
-                        <p class="text-xs text-blue-600">請使用 Excel 或 Google Sheet 編輯後儲存為 CSV 格式。</p>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">客戶姓名 *</label>
+                        <input type="text" name="name" required class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
-                    <button onclick="window.app.downloadTemplate()" class="text-sm bg-white text-blue-600 border border-blue-200 px-3 py-1.5 rounded hover:bg-blue-50 shadow-sm flex items-center gap-1">
-                        <i data-lucide="download" width="14" height="14"></i> 下載 CSV 範本
-                    </button>
-                </div>
-                <div>
-                    <p class="text-sm font-bold text-gray-800 mb-2">步驟 2：上傳檔案</p>
-                    <input type="file" accept=".csv" onchange="window.app.handleFileSelect(this)" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-gray-300 rounded-lg p-2">
-                    <p id="import-error" class="text-red-500 text-sm mt-2"></p>
-                </div>
-                <div id="import-preview" class="hidden">
-                    <p class="text-sm font-bold text-gray-800 mb-2">預覽資料 (前 3 筆)</p>
-                    <div class="overflow-x-auto border rounded-lg">
-                        <table class="min-w-full text-xs text-left">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-3 py-2">姓名</th>
-                                    <th class="px-3 py-2">電話</th>
-                                    <th class="px-3 py-2">車型</th>
-                                    <th class="px-3 py-2">類別</th>
-                                </tr>
-                            </thead>
-                            <tbody id="import-preview-body"></tbody>
-                        </table>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">聯絡電話 *</label>
+                        <input type="tel" name="phone" required class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                     <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">地址 (選填)</label>
+                        <input type="text" name="address" class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                 </div>
-                <div class="flex justify-end gap-3 pt-4 border-t">
-                    <button onclick="document.getElementById('import-modal').close()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
-                    <button id="start-import-btn" onclick="window.app.executeImport()" disabled class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                        開始匯入
-                    </button>
+                <!-- Vehicle Info -->
+                <div class="space-y-4">
+                    <h4 class="font-bold text-slate-800 border-b pb-2 text-sm">車輛資訊</h4>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">車型型號 *</label>
+                        <input type="text" name="model" required placeholder="e.g. Gogoro 2, Ai-1" class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">車牌號碼</label>
+                            <input type="text" name="plate" class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-yellow-50 font-mono text-center placeholder-slate-300" placeholder="ABC-1234">
+                        </div>
+                         <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">車身序號 (VIN)</label>
+                            <input type="text" name="vin" class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-xs">
+                        </div>
+                    </div>
+                    <div>
+                         <label class="block text-xs font-medium text-slate-500 mb-1">購車日期 (計算保固)</label>
+                         <input type="date" name="purchaseDate" class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
                 </div>
+                 <!-- Note -->
+                 <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-500 mb-1">備註事項</label>
+                    <textarea name="notes" rows="2" class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+                 </div>
+                 <input type="hidden" name="id">
             </div>
-        </div>
+            <div class="bg-slate-50 px-6 py-4 flex justify-end gap-3 border-t">
+                <button type="button" onclick="document.getElementById('customer-modal').close()" class="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded transition">取消</button>
+                <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded shadow hover:bg-indigo-700 transition">儲存資料</button>
+            </div>
+        </form>
     </dialog>
 
-    <!-- Logic Script -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, orderBy, Timestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-
-        // --- Config & Init ---
-        // REPLACE WITH YOUR ACTUAL CONFIG IF NOT IN ENV
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        // --- State ---
-        let currentUser = null;
-        let customers = [];
-        let selectedCustomerId = null;
-        let importData = [];
-        let formMode = 'add'; // 'add' or 'edit'
-
-        // --- Constants ---
-        const WARRANTY_TERMS = [
-            "本保固僅限於正常使用下之原廠零件瑕疵。",
-            "泡水、涉水深度超過輪軸導致的電子零件損壞不在保固範圍內。",
-            "電池長期未充電導致深度放電（假死）、電壓過低無法喚醒，屬人為疏失，不在保固範圍內。",
-            "使用非原廠充電器導致的電池或電路板損壞，或過度充電導致的膨脹，不在保固範圍內。",
-            "自行改裝控制器、馬達、解限速或變更電路系統導致的損壞。",
-            "車輛發生交通事故、碰撞、跌倒導致的外觀與結構損壞。",
-            "消耗性零件（如：輪胎、煞車皮、燈泡、保險絲、皮帶/鍊條）之自然磨損。",
-            "因天災（如颱風、淹水、地震）等不可抗力因素造成之損壞。",
-            "營業用途（如外送、快遞）之高強度使用，部分零件保固期可能縮短或不適用。",
-            "未按原廠建議週期回廠保養，導致機械零件潤滑不足或功能異常。"
-        ];
-
-        // --- Helpers ---
-        const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
-        
-        const formatDate = (dateStr) => {
-            if (!dateStr || dateStr === '-') return '-';
-            const d = new Date(dateStr);
-            return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('zh-TW');
-        };
-
-        const formatCurrency = (amount) => {
-            if (amount === undefined || amount === null || isNaN(amount)) return '-';
-            return new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', minimumFractionDigits: 0 }).format(amount);
-        };
-
-        const calculateWarranty = (purchaseDate, warrantyDays) => {
-            if (!purchaseDate) return { isValid: false, remainingDays: 0, endDate: '-' };
-            const start = new Date(purchaseDate);
-            if (isNaN(start.getTime())) return { isValid: false, remainingDays: 0, endDate: '-' };
-            
-            const end = new Date(start);
-            end.setDate(start.getDate() + (warrantyDays || 0));
-            
-            const today = new Date();
-            const diffTime = end.getTime() - today.getTime();
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            return {
-                isValid: diffDays > 0,
-                remainingDays: diffDays > 0 ? diffDays : 0,
-                endDate: end.toISOString().split('T')[0]
-            };
-        };
-
-        // --- DOM Render Functions ---
-        
-        // 1. Render List
-        const renderCustomerList = (searchTerm = '') => {
-            const tbody = document.getElementById('customer-list-body');
-            tbody.innerHTML = '';
-
-            const filtered = customers.filter(c => 
-                (c.phone && c.phone.includes(searchTerm)) || 
-                (c.name && c.name.includes(searchTerm)) ||
-                (c.vin && c.vin.includes(searchTerm))
-            );
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-400">沒有找到符合的資料</td></tr>';
-                return;
-            }
-
-            filtered.forEach(c => {
-                const w = calculateWarranty(c.purchaseDate, c.warrantyDays);
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition group cursor-pointer border-b border-gray-100";
-                tr.onclick = () => showDetail(c.id);
+     <!-- MODAL: ADD REPAIR RECORD -->
+    <dialog id="repair-modal" class="backdrop:bg-slate-900/50 rounded-xl shadow-2xl p-0 w-full max-w-2xl overflow-hidden">
+        <form id="repair-form" onsubmit="event.preventDefault(); app.saveRepair();">
+            <div class="bg-indigo-600 text-white px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-bold">新增維修工單</h3>
+                <button type="button" onclick="document.getElementById('repair-modal').close()" class="text-indigo-200 hover:text-white"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-6 bg-white space-y-4">
+                <input type="hidden" name="customerId" id="repair-customer-id">
                 
-                const categoryClass = c.category === 'repair' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800';
-                const categoryText = c.category === 'repair' ? '維修' : '購車';
-                const warrantyText = w.isValid ? `保固中 (${w.remainingDays}天)` : '已過期/無';
-                const warrantyClass = w.isValid ? 'text-green-600 font-medium' : 'text-gray-400';
+                <div class="flex items-center gap-3 bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                    <div class="bg-indigo-200 p-2 rounded-full text-indigo-700"><i data-lucide="user" width="20"></i></div>
+                    <div>
+                        <p class="text-xs text-indigo-500 font-bold">維修客戶</p>
+                        <p class="font-bold text-indigo-900 text-lg" id="repair-customer-name">---</p>
+                    </div>
+                </div>
 
-                tr.innerHTML = `
-                    <td class="px-6 py-4"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${categoryClass}">${categoryText}</span></td>
-                    <td class="px-6 py-4 font-medium text-gray-900">${c.name || '-'}</td>
-                    <td class="px-6 py-4 text-gray-500 font-mono">${c.phone || '-'}</td>
-                    <td class="px-6 py-4 text-gray-600">${c.model || '-'}</td>
-                    <td class="px-6 py-4 text-gray-600"><span class="text-xs ${warrantyClass}">${warrantyText}</span></td>
-                    <td class="px-6 py-4 text-right"><span class="text-indigo-600 text-sm font-medium opacity-0 group-hover:opacity-100 transition">查看 &gt;</span></td>
-                `;
-                tbody.appendChild(tr);
-            });
-        };
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">工單狀態</label>
+                        <select name="status" class="w-full border rounded p-2 bg-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="pending">待修中 (Pending)</option>
+                            <option value="fixing">維修中 (In Progress)</option>
+                            <option value="completed">已完工 (Completed)</option>
+                        </select>
+                    </div>
+                     <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">當前里程數 (KM)</label>
+                        <input type="number" name="mileage" class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
 
-        // 2. Show/Hide Views
-        const setView = (viewName) => {
-            document.getElementById('view-list').classList.add('hidden');
-            document.getElementById('view-form').classList.add('hidden');
-            document.getElementById('view-detail').classList.add('hidden');
-            
-            if (viewName === 'list') {
-                document.getElementById('view-list').classList.remove('hidden');
-                renderCustomerList(document.getElementById('search-input').value);
-            } else if (viewName === 'form') {
-                document.getElementById('view-form').classList.remove('hidden');
-            } else if (viewName === 'detail') {
-                document.getElementById('view-detail').classList.remove('hidden');
-                renderCustomerDetail();
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">維修內容描述 *</label>
+                    <textarea name="description" required rows="3" placeholder="例如：更換後輪胎、定期保養、檢查煞車..." class="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <p class="text-xs font-bold text-slate-500 mb-2 border-b pb-1">費用計算</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">零件費用</label>
+                            <input type="number" name="partsCost" value="0" oninput="app.calcTotal()" class="w-full border rounded p-2 text-right">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">工資/服務費</label>
+                            <input type="number" name="laborCost" value="0" oninput="app.calcTotal()" class="w-full border rounded p-2 text-right">
+                        </div>
+                    </div>
+                    <div class="mt-3 flex justify-between items-center pt-2 border-t border-slate-200">
+                        <span class="font-bold text-slate-700">總金額</span>
+                        <span class="text-2xl font-bold text-indigo-600" id="repair-total-display">$0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-6 py-4 flex justify-end gap-3 border-t">
+                 <button type="button" onclick="document.getElementById('repair-modal').close()" class="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded transition">取消</button>
+                <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded shadow hover:bg-indigo-700 transition">建立工單</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- JS Logic -->
+    <script>
+        // --- Data Store (LocalStorage Wrapper) ---
+        const Store = {
+            db: {
+                customers: [],
+                inventory: [],
+                repairs: [],
+                settings: {
+                    shopName: "迪特軍 EV",
+                    lastSync: null
+                }
+            },
+            init() {
+                const saved = localStorage.getItem('diter_ev_db');
+                if (saved) {
+                    this.db = JSON.parse(saved);
+                } else {
+                    // Seed Data for Demo
+                    this.seed();
+                }
+            },
+            save() {
+                localStorage.setItem('diter_ev_db', JSON.stringify(this.db));
+                app.updateStats();
+            },
+            seed() {
+                this.db.customers = [
+                    { id: 'c1', name: '王小明', phone: '0912345678', model: 'Gogoro 2', plate: 'ABC-1234', vin: 'G2-998877', purchaseDate: '2024-01-10', notes: 'VIP 客戶' },
+                    { id: 'c2', name: '林美麗', phone: '0988777666', model: 'Ai-1 Sport', plate: 'XYZ-5678', vin: 'A1-556677', purchaseDate: '2023-05-20', notes: '' }
+                ];
+                this.db.inventory = [
+                    { id: 'p1', name: '米其林 City Grip 2 (前)', category: 'tire', stock: 4, price: 2200 },
+                    { id: 'p2', name: '原廠煞車皮', category: 'other', stock: 10, price: 450 }
+                ];
+                this.save();
             }
-            lucide.createIcons();
         };
 
-        // 3. Render Detail
-        const renderCustomerDetail = () => {
-            const customer = customers.find(c => c.id === selectedCustomerId);
-            if (!customer) return;
-
-            const w = calculateWarranty(customer.purchaseDate, customer.warrantyDays);
+        // --- Application Logic ---
+        const app = {
+            currentView: 'dashboard',
             
-            // Set Header
-            const tag = document.getElementById('detail-category-tag');
-            tag.className = `absolute top-0 right-0 px-4 py-1 rounded-bl-xl text-sm font-bold ${customer.category === 'repair' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`;
-            tag.textContent = customer.category === 'repair' ? '維修客戶' : '購車客戶';
-            
-            document.getElementById('detail-name').textContent = customer.name;
-            document.getElementById('detail-phone').textContent = customer.phone;
+            init() {
+                Store.init();
+                lucide.createIcons();
+                this.nav('dashboard');
+                this.updateStats();
+                
+                // Inventory Filter Init
+                this.renderInventory();
+            },
 
-            // Info Grid
-            const infoGrid = document.getElementById('detail-info-grid');
-            const warrantyBadge = w.isValid 
-                ? `<div class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1"><i data-lucide="check-circle" width="12"></i> 保固中 (剩 ${w.remainingDays} 天)</div>`
-                : `<div class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1"><i data-lucide="alert-circle" width="12"></i> 保固已過期 / 無保固</div>`;
+            // Navigation
+            nav(viewId) {
+                // Update UI state
+                document.querySelectorAll('.nav-item').forEach(el => {
+                    el.classList.remove('bg-slate-800', 'text-indigo-400');
+                    el.classList.add('text-slate-300');
+                });
+                document.getElementById(`nav-${viewId}`).classList.add('bg-slate-800', 'text-indigo-400');
+                document.getElementById(`nav-${viewId}`).classList.remove('text-slate-300');
 
-            infoGrid.innerHTML = `
-                <div class="flex justify-between border-b border-gray-100 pb-2"><span>車型/規格:</span><span class="font-medium text-gray-900">${customer.model} / ${customer.specs}</span></div>
-                <div class="flex justify-between border-b border-gray-100 pb-2"><span>車身序號 (VIN):</span><span class="font-mono text-gray-900">${customer.vin || '-'}</span></div>
-                <div class="flex justify-between border-b border-gray-100 pb-2"><span>購車日期:</span><span class="font-medium text-gray-900">${formatDate(customer.purchaseDate)}</span></div>
-                <div class="flex justify-between border-b border-gray-100 pb-2"><span>交車金額:</span><span class="font-bold text-gray-900 text-base">${formatCurrency(customer.price)}</span></div>
-                <div class="flex justify-between pt-1 items-center"><span>保固狀態:</span>${warrantyBadge}</div>
-                <div class="mt-4 p-2 bg-gray-50 rounded text-xs text-gray-500">備註: ${customer.notes || '無'}</div>
-            `;
+                // Hide all views
+                ['dashboard', 'customers', 'repairs', 'inventory', 'settings'].forEach(v => {
+                    document.getElementById(`view-${v}`).classList.add('hidden');
+                });
+                
+                // Show selected view
+                document.getElementById(`view-${viewId}`).classList.remove('hidden');
+                this.currentView = viewId;
 
-            // Records List
-            const historyBody = document.getElementById('history-list-body');
-            historyBody.innerHTML = '';
-            
-            if (customer.records && customer.records.length > 0) {
-                customer.records.forEach(rec => {
-                    let typeClass = 'bg-blue-100 text-blue-800';
-                    let typeName = '定期保養';
-                    if (rec.type === 'battery') { typeClass = 'bg-green-100 text-green-800'; typeName = '更換電池'; }
-                    if (rec.type === 'repair') { typeClass = 'bg-orange-100 text-orange-800'; typeName = '故障維修'; }
+                // Set Title
+                const titles = {
+                    'dashboard': '營運儀表板',
+                    'customers': '客戶與車籍管理',
+                    'repairs': '維修工單中心',
+                    'inventory': '零件庫存管理',
+                    'settings': '系統設定'
+                };
+                document.getElementById('page-title').innerText = titles[viewId];
 
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${new Date(rec.date).toLocaleDateString('zh-TW')}</td>
-                        <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-bold ${typeClass}">${typeName}</span></td>
-                        <td class="px-4 py-3 text-gray-800">${rec.notes}</td>
-                        <td class="px-4 py-3 text-right">
-                            <button onclick="window.app.deleteRecord('${rec.id}')" class="text-gray-400 hover:text-red-600 p-1 transition"><i data-lucide="trash-2" width="16"></i></button>
+                // Trigger Renderers
+                if(viewId === 'dashboard') this.renderDashboard();
+                if(viewId === 'customers') this.renderCustomers();
+                if(viewId === 'repairs') this.renderRepairs();
+                if(viewId === 'inventory') this.renderInventory();
+
+                lucide.createIcons();
+            },
+
+            // --- Stats & Dashboard ---
+            updateStats() {
+                // Calculate Revenue (This month)
+                const now = new Date();
+                const thisMonth = now.getMonth();
+                const totalRev = Store.db.repairs.reduce((acc, curr) => {
+                    const d = new Date(curr.date);
+                    if (d.getMonth() === thisMonth && curr.status === 'completed') {
+                        return acc + (parseInt(curr.totalCost) || 0);
+                    }
+                    return acc;
+                }, 0);
+
+                const repairingCount = Store.db.repairs.filter(r => r.status !== 'completed').length;
+                const lowStockCount = Store.db.inventory.filter(i => i.stock <= 2).length;
+
+                document.getElementById('stat-revenue').innerText = `$${totalRev.toLocaleString()}`;
+                document.getElementById('stat-repairing').innerText = repairingCount;
+                document.getElementById('stat-customers').innerText = Store.db.customers.length;
+                document.getElementById('stat-lowstock').innerText = lowStockCount;
+
+                // Badge Update
+                const badge = document.getElementById('badge-repair');
+                if (repairingCount > 0) {
+                    badge.innerText = repairingCount;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            },
+
+            renderDashboard() {
+                const tbody = document.getElementById('dashboard-activity-list');
+                tbody.innerHTML = '';
+                
+                // Get last 5 repairs
+                const recents = [...Store.db.repairs].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+                
+                if (recents.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-slate-400 text-xs">尚無活動紀錄</td></tr>`;
+                    return;
+                }
+
+                recents.forEach(r => {
+                    const c = Store.db.customers.find(cx => cx.id === r.customerId) || { name: '未知' };
+                    let statusColor = r.status === 'completed' ? 'text-green-600' : 'text-orange-500';
+                    let statusText = r.status === 'completed' ? '已完工' : (r.status === 'fixing' ? '維修中' : '待修');
+
+                    const tr = document.createElement('tr');
+                    tr.className = "bg-white border-b hover:bg-slate-50";
+                    tr.innerHTML = `
+                        <td class="px-4 py-3 text-slate-500 text-xs">${new Date(r.date).toLocaleDateString()}</td>
+                        <td class="px-4 py-3 font-medium text-slate-700">${statusText}</td>
+                        <td class="px-4 py-3 text-slate-600 text-sm">${c.name} <span class="text-xs text-slate-400">(${r.description.substring(0,10)}...)</span></td>
+                        <td class="px-4 py-3 text-right font-bold ${statusColor}">$${r.totalCost}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            },
+
+            // --- Customer Logic ---
+            renderCustomers() {
+                const tbody = document.getElementById('customer-list-body');
+                tbody.innerHTML = '';
+                const search = document.getElementById('customer-search').value.toLowerCase();
+
+                const filtered = Store.db.customers.filter(c => 
+                    c.name.toLowerCase().includes(search) || 
+                    c.phone.includes(search) ||
+                    (c.plate && c.plate.toLowerCase().includes(search))
+                );
+
+                filtered.forEach(c => {
+                    // Find last repair
+                    const cRepairs = Store.db.repairs.filter(r => r.customerId === c.id).sort((a,b) => new Date(b.date) - new Date(a.date));
+                    const lastDate = cRepairs.length > 0 ? new Date(cRepairs[0].date).toLocaleDateString() : '無紀錄';
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50 transition border-b border-slate-100 group";
+                    tr.innerHTML = `
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-slate-800">${c.name}</div>
+                            <div class="text-xs text-slate-400">ID: ${c.id.substring(0,6)}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-slate-700">${c.model}</div>
+                            <div class="text-xs bg-slate-100 inline-block px-1 rounded text-slate-500">${c.plate || '未填車牌'}</div>
+                        </td>
+                        <td class="px-6 py-4 font-mono text-slate-600">${c.phone}</td>
+                        <td class="px-6 py-4 text-sm text-slate-500">${lastDate}</td>
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="app.startRepair('${c.id}')" class="text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded text-xs font-bold mr-2 transition">維修</button>
+                            <button onclick="app.editCustomer('${c.id}')" class="text-slate-400 hover:text-slate-600 transition"><i data-lucide="edit-2" width="16"></i></button>
                         </td>
                     `;
-                    historyBody.appendChild(row);
+                    tbody.appendChild(tr);
                 });
-            } else {
-                historyBody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">尚無紀錄</td></tr>';
-            }
-            lucide.createIcons();
-        };
-
-        // --- Logic Actions ---
-
-        window.app = {
-            setView,
-            
-            handleSearch: (val) => {
-                renderCustomerList(val);
+                lucide.createIcons();
             },
 
-            // Form Actions
-            startAddCustomer: () => {
-                formMode = 'add';
-                document.getElementById('form-title').textContent = '建立新客戶資料';
-                document.getElementById('form-submit-text').textContent = '建立資料';
-                document.getElementById('customer-form').reset();
-                // Set default date
-                document.querySelector('input[name="purchaseDate"]').value = new Date().toISOString().split('T')[0];
-                setView('form');
+            openModal(id) {
+                document.getElementById(id).showModal();
+                if(id === 'customer-modal') {
+                    document.getElementById('customer-form').reset();
+                    document.getElementById('modal-title').innerText = '新增客戶資料';
+                    document.querySelector('[name="id"]').value = '';
+                }
             },
 
-            startEditCustomer: () => {
-                const c = customers.find(x => x.id === selectedCustomerId);
+            saveCustomer() {
+                const form = document.getElementById('customer-form');
+                const fd = new FormData(form);
+                const data = Object.fromEntries(fd.entries());
+                
+                if (!data.id) {
+                    data.id = 'c' + Date.now();
+                    Store.db.customers.push(data);
+                } else {
+                    const idx = Store.db.customers.findIndex(c => c.id === data.id);
+                    if (idx !== -1) Store.db.customers[idx] = data;
+                }
+                
+                Store.save();
+                document.getElementById('customer-modal').close();
+                this.renderCustomers();
+                this.updateStats();
+            },
+
+            editCustomer(id) {
+                const c = Store.db.customers.find(x => x.id === id);
                 if (!c) return;
                 
-                formMode = 'edit';
-                document.getElementById('form-title').textContent = '編輯客戶資料';
-                document.getElementById('form-submit-text').textContent = '儲存變更';
-                
                 const form = document.getElementById('customer-form');
+                form.id.value = c.id;
                 form.name.value = c.name;
                 form.phone.value = c.phone;
                 form.model.value = c.model;
+                form.plate.value = c.plate || '';
                 form.vin.value = c.vin || '';
-                form.specs.value = c.specs || '';
-                form.price.value = c.price || 0;
-                form.purchaseDate.value = c.purchaseDate;
-                form.warrantyDays.value = c.warrantyDays;
+                form.purchaseDate.value = c.purchaseDate || '';
+                form.address.value = c.address || '';
                 form.notes.value = c.notes || '';
                 
-                // Radio
-                const radios = form.elements['category'];
-                for (let i=0; i<radios.length; i++) {
-                    if (radios[i].value === c.category) radios[i].checked = true;
+                document.getElementById('modal-title').innerText = '編輯客戶資料';
+                document.getElementById('customer-modal').showModal();
+            },
+
+            // --- Repair Logic ---
+            startRepair(customerId) {
+                const c = Store.db.customers.find(x => x.id === customerId);
+                document.getElementById('repair-customer-id').value = c.id;
+                document.getElementById('repair-customer-name').innerText = `${c.name} (${c.model})`;
+                document.getElementById('repair-form').reset();
+                // set default values
+                document.querySelector('[name="partsCost"]').value = 0;
+                document.querySelector('[name="laborCost"]').value = 0;
+                document.getElementById('repair-total-display').innerText = '$0';
+                
+                document.getElementById('repair-modal').showModal();
+            },
+
+            calcTotal() {
+                const p = parseInt(document.querySelector('[name="partsCost"]').value) || 0;
+                const l = parseInt(document.querySelector('[name="laborCost"]').value) || 0;
+                document.getElementById('repair-total-display').innerText = `$${(p+l).toLocaleString()}`;
+            },
+
+            saveRepair() {
+                const form = document.getElementById('repair-form');
+                const fd = new FormData(form);
+                const data = Object.fromEntries(fd.entries());
+                
+                const total = (parseInt(data.partsCost)||0) + (parseInt(data.laborCost)||0);
+                
+                const record = {
+                    id: 'r' + Date.now(),
+                    customerId: data.customerId,
+                    date: new Date().toISOString(),
+                    description: data.description,
+                    mileage: data.mileage,
+                    status: data.status,
+                    partsCost: parseInt(data.partsCost)||0,
+                    laborCost: parseInt(data.laborCost)||0,
+                    totalCost: total
+                };
+                
+                Store.db.repairs.push(record);
+                Store.save();
+                document.getElementById('repair-modal').close();
+                this.nav('repairs'); // switch to repairs view
+            },
+
+            renderRepairs() {
+                // Just calling filterRepairs('all') to render initial state
+                this.filterRepairs('all');
+            },
+
+            filterRepairs(status) {
+                const container = document.getElementById('repair-kanban');
+                container.innerHTML = '';
+                
+                let list = Store.db.repairs;
+                if (status !== 'all') {
+                    list = list.filter(r => r.status === status);
+                }
+                // Sort by date desc
+                list.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+                if (list.length === 0) {
+                    container.innerHTML = `<div class="text-center py-10 text-slate-400">目前沒有${status==='all'?'':status}工單</div>`;
+                    return;
                 }
 
-                setView('form');
-            },
+                list.forEach(r => {
+                    const c = Store.db.customers.find(x => x.id === r.customerId) || {name: '未知', model: '-'};
+                    
+                    let borderClass = 'border-l-4 border-l-slate-300';
+                    let bgClass = 'bg-white';
+                    if (r.status === 'pending') borderClass = 'border-l-4 border-l-yellow-400';
+                    if (r.status === 'fixing') { borderClass = 'border-l-4 border-l-blue-500'; bgClass = 'bg-blue-50/30'; }
+                    if (r.status === 'completed') { borderClass = 'border-l-4 border-l-green-500'; }
 
-            promptDeleteCustomer: () => {
-                const modal = document.getElementById('confirm-modal');
-                document.getElementById('confirm-title').textContent = '刪除客戶資料';
-                document.getElementById('confirm-message').textContent = '確定要刪除這位客戶的資料嗎？此動作無法復原。';
-                
-                document.getElementById('confirm-btn').onclick = async () => {
-                    try {
-                        await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'customers', selectedCustomerId));
-                        modal.close();
-                        selectedCustomerId = null;
-                        setView('list');
-                    } catch (err) {
-                        alert('刪除失敗');
-                    }
-                };
-                modal.showModal();
-            },
-
-            // Record Actions
-            setRecordType: (type) => {
-                document.getElementById('record-type-input').value = type;
-                // Update UI styles for buttons
-                document.querySelectorAll('.record-type-btn').forEach(btn => {
-                    if (btn.dataset.type === type) {
-                        // Apply active style based on type
-                        if(type==='regular') btn.className = 'record-type-btn p-2 rounded border text-sm flex flex-col items-center justify-center gap-1 bg-blue-50 border-blue-500 text-blue-700';
-                        if(type==='battery') btn.className = 'record-type-btn p-2 rounded border text-sm flex flex-col items-center justify-center gap-1 bg-green-50 border-green-500 text-green-700';
-                        if(type==='repair') btn.className = 'record-type-btn p-2 rounded border text-sm flex flex-col items-center justify-center gap-1 bg-orange-50 border-orange-500 text-orange-700';
-                    } else {
-                        btn.className = 'record-type-btn p-2 rounded border text-sm flex flex-col items-center justify-center gap-1 border-gray-200 hover:bg-gray-50';
-                    }
-                });
-            },
-
-            deleteRecord: (recordId) => {
-                const modal = document.getElementById('confirm-modal');
-                document.getElementById('confirm-title').textContent = '刪除維修紀錄';
-                document.getElementById('confirm-message').textContent = '確定要刪除這筆維修紀錄嗎？';
-                
-                document.getElementById('confirm-btn').onclick = async () => {
-                    try {
-                        const c = customers.find(x => x.id === selectedCustomerId);
-                        const newRecords = c.records.filter(r => r.id !== recordId);
-                        await updateDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'customers', selectedCustomerId), {
-                            records: newRecords
-                        });
-                        modal.close();
-                    } catch (err) {
-                        alert('刪除紀錄失敗');
-                    }
-                };
-                modal.showModal();
-            },
-
-            // Print Actions
-            showPrintPreview: (type) => {
-                const c = customers.find(x => x.id === selectedCustomerId);
-                if (!c) return;
-                
-                const w = calculateWarranty(c.purchaseDate, c.warrantyDays);
-                const overlay = document.getElementById('print-overlay');
-                const content = document.getElementById('print-content-node');
-                
-                // Bike SVG string
-                const bikeSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 24 24" fill="none" stroke="#e5e7eb" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bike"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>`;
-
-                if (type === 'warranty') {
-                    // Generate Warranty Card HTML
-                    const termsHtml = WARRANTY_TERMS.map((t,i) => `<li>${t}</li>`).join('');
-                    content.innerHTML = `
-                        <div class="border-4 border-double border-gray-800 p-8 h-full relative flex flex-col justify-between">
-                            <div class="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none overflow-hidden">${bikeSvg}</div>
-                            <div class="relative z-10">
-                                <div class="text-center mb-12 mt-4">
-                                    <h1 class="text-5xl font-bold tracking-widest mb-4">產品保固證書</h1>
-                                    <p class="text-2xl text-gray-600">迪特軍 - 專業電動車服務</p>
-                                </div>
-                                <div class="grid grid-cols-2 gap-12 mb-12 text-xl">
-                                    <div class="space-y-8">
-                                        <div class="border-b-2 border-gray-300 pb-2 flex items-end"><span class="font-bold text-gray-800 w-28 flex-shrink-0">客戶姓名：</span><span class="font-medium flex-1">${c.name}</span></div>
-                                        <div class="border-b-2 border-gray-300 pb-2 flex items-end"><span class="font-bold text-gray-800 w-28 flex-shrink-0">聯絡電話：</span><span class="font-medium flex-1">${c.phone}</span></div>
-                                        <div class="border-b-2 border-gray-300 pb-2 flex items-end"><span class="font-bold text-gray-800 w-28 flex-shrink-0">車輛型號：</span><span class="font-medium flex-1">${c.model}</span></div>
-                                    </div>
-                                    <div class="space-y-8">
-                                        <div class="border-b-2 border-gray-300 pb-2 flex items-end"><span class="font-bold text-gray-800 w-28 flex-shrink-0">購車日期：</span><span class="font-medium flex-1">${formatDate(c.purchaseDate)}</span></div>
-                                        <div class="border-b-2 border-gray-300 pb-2 flex items-end"><span class="font-bold text-gray-800 w-28 flex-shrink-0">保固期限：</span><span class="font-medium flex-1">${formatDate(w.endDate)} <span class="text-base text-gray-500">(${c.warrantyDays} 天)</span></span></div>
-                                        <div class="border-b-2 border-gray-300 pb-2 flex items-end"><span class="font-bold text-gray-800 w-28 flex-shrink-0">車身序號：</span><span class="font-mono font-medium flex-1">${c.vin || '-'}</span></div>
-                                    </div>
-                                </div>
-                                <div class="mb-8">
-                                    <h3 class="text-xl font-bold border-l-8 border-black pl-4 mb-6">保固條款與除外責任</h3>
-                                    <ul class="list-disc pl-6 space-y-2 text-base text-gray-800 leading-relaxed text-justify">${termsHtml}</ul>
-                                </div>
+                    const card = document.createElement('div');
+                    card.className = `p-4 rounded-lg shadow-sm border border-slate-200 ${bgClass} ${borderClass} flex justify-between items-center transition hover:shadow-md`;
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-bold text-slate-800 text-lg">${c.name}</span>
+                                <span class="text-xs text-slate-500 bg-slate-100 px-1 rounded">${c.model}</span>
                             </div>
-                            <div class="text-right relative z-10 mt-8 mb-4">
-                                <div class="inline-block text-center">
-                                    <p class="font-bold text-lg text-gray-600 mb-8 text-left">店章 / 簽名處</p>
-                                    <div class="w-72 h-32 border-2 border-dashed border-gray-400 rounded-lg bg-white bg-opacity-50"></div>
-                                    <p class="text-xs text-gray-400 mt-2 text-right">列印日期: ${new Date().toLocaleDateString()}</p>
-                                </div>
-                            </div>
+                            <p class="text-slate-600 text-sm mb-1">${r.description}</p>
+                            <p class="text-xs text-slate-400 flex gap-3">
+                                <span><i data-lucide="calendar" width="12" class="inline"></i> ${new Date(r.date).toLocaleDateString()}</span>
+                                <span><i data-lucide="gauge" width="12" class="inline"></i> ${r.mileage || 0} km</span>
+                            </p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xl font-bold text-slate-800">$${r.totalCost.toLocaleString()}</div>
+                            ${r.status !== 'completed' ? 
+                                `<button onclick="app.completeRepair('${r.id}')" class="text-xs bg-green-600 text-white px-2 py-1 rounded mt-2 hover:bg-green-700">完工結帳</button>` : 
+                                `<span class="text-xs text-green-600 font-bold border border-green-200 px-2 py-1 rounded mt-2 inline-block">已結案</span>`
+                            }
                         </div>
                     `;
-                } else {
-                    // Generate Receipt HTML
-                    const termsShort = WARRANTY_TERMS.slice(0, 5).map((t,i) => `<div class="mb-1">${i+1}. ${t}</div>`).join('');
-                    content.innerHTML = `
-                        <div class="border-4 border-gray-800 p-8 h-full relative flex flex-col justify-between">
+                    container.appendChild(card);
+                });
+                lucide.createIcons();
+            },
+
+            completeRepair(id) {
+                const idx = Store.db.repairs.findIndex(r => r.id === id);
+                if (idx !== -1) {
+                    if(confirm("確定要將此工單標記為完工？")) {
+                        Store.db.repairs[idx].status = 'completed';
+                        Store.save();
+                        this.filterRepairs('all');
+                    }
+                }
+            },
+
+            // --- Inventory Logic (Simple) ---
+            renderInventory() {
+                const container = document.getElementById('inventory-grid');
+                container.innerHTML = '';
+                const filter = document.getElementById('inventory-filter').value;
+                
+                let list = Store.db.inventory;
+                if (filter !== 'all') list = list.filter(i => i.category === filter);
+
+                // Always add "Add Card" at end if needed, but we have header button
+                
+                list.forEach(item => {
+                    const isLow = item.stock <= 2;
+                    const card = document.createElement('div');
+                    card.className = "bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-300 transition relative";
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 border px-1 rounded">${item.category}</span>
+                            <span class="font-bold text-slate-800">$${item.price}</span>
+                        </div>
+                        <h4 class="font-bold text-slate-800 mb-4">${item.name}</h4>
+                        <div class="flex justify-between items-end">
                             <div>
-                                <div class="text-center mb-10 border-b-2 border-gray-800 pb-6">
-                                    <h1 class="text-4xl font-bold tracking-widest mb-2">交車簽收單</h1>
-                                    <p class="text-xl text-gray-600">迪特軍 - 專業電動車服務</p>
-                                    <div class="absolute top-0 right-0 text-sm text-gray-500 mt-2">單號: ${c.id.substring(0,8).toUpperCase()}</div>
-                                </div>
-                                <div class="grid grid-cols-2 gap-x-12 gap-y-6 mb-8 text-lg">
-                                    <div class="col-span-2 bg-gray-100 p-2 font-bold text-center border border-gray-300">客戶資料</div>
-                                    <div class="flex border-b border-gray-300 pb-1"><span class="font-bold w-24">客戶大名：</span><span class="flex-1">${c.name}</span></div>
-                                    <div class="flex border-b border-gray-300 pb-1"><span class="font-bold w-24">聯絡電話：</span><span class="flex-1">${c.phone}</span></div>
-                                    <div class="col-span-2 bg-gray-100 p-2 font-bold text-center border border-gray-300 mt-4">車輛資料</div>
-                                    <div class="flex border-b border-gray-300 pb-1"><span class="font-bold w-24">車輛型號：</span><span class="flex-1">${c.model}</span></div>
-                                    <div class="flex border-b border-gray-300 pb-1"><span class="font-bold w-24">車身序號：</span><span class="flex-1 font-mono">${c.vin || '-'}</span></div>
-                                    <div class="flex border-b border-gray-300 pb-1"><span class="font-bold w-24">規格顏色：</span><span class="flex-1">${c.specs || '-'}</span></div>
-                                    <div class="flex border-b border-gray-300 pb-1"><span class="font-bold w-24">交車金額：</span><span class="flex-1 font-bold text-xl">${formatCurrency(c.price)}</span></div>
-                                </div>
-                                <div class="mb-8">
-                                    <div class="bg-gray-800 text-white p-2 font-bold mb-4">交車保固說明與檢核確認</div>
-                                    <div class="text-sm text-gray-800 space-y-3 leading-relaxed border border-gray-300 p-4">
-                                        <p class="font-bold">請確認以下項目：</p>
-                                        <ul class="list-none space-y-2 pl-2">
-                                            <li>□ 車輛外觀檢查無刮傷、無損壞。</li>
-                                            <li>□ 各項功能操作正常（燈光、儀表、煞車、動力系統）。</li>
-                                            <li>□ 隨車配件、鑰匙、充電器材點收無誤。</li>
-                                            <li>□ 已清楚了解並同意以下保固條款：</li>
-                                        </ul>
-                                        <div class="pl-6 text-xs text-gray-600 mt-2 border-t border-dashed border-gray-300 pt-2">
-                                            ${termsShort}
-                                            <div class="italic text-gray-400">... (完整條款請參閱保固證書)</div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <p class="text-xs text-slate-500 mb-1">庫存數量</p>
+                                <div class="text-2xl font-bold ${isLow ? 'text-red-500' : 'text-slate-700'}">${item.stock}</div>
                             </div>
-                            <div class="mt-8">
-                                <div class="border border-gray-400 p-6">
-                                    <p class="text-sm font-bold mb-8">本人確認上述車輛及配件點收無誤，並已詳閱且同意保固條款內容。</p>
-                                    <div class="flex justify-between items-end h-32">
-                                        <div class="w-1/2 text-center border-r border-gray-300 pr-4"><p class="text-gray-500 mb-16 text-left">店家人員簽章：</p><div class="border-b border-black"></div></div>
-                                        <div class="w-1/2 text-center pl-4"><p class="text-gray-500 mb-16 text-left">客戶簽名：</p><div class="border-b border-black"></div></div>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-center text-gray-400 mt-2">交車日期: ${new Date().toLocaleDateString()}</p>
+                            <div class="flex gap-1">
+                                <button onclick="app.adjStock('${item.id}', -1)" class="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600">-</button>
+                                <button onclick="app.adjStock('${item.id}', 1)" class="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600">+</button>
                             </div>
                         </div>
+                        ${isLow ? '<div class="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>' : ''}
                     `;
-                }
-
-                overlay.classList.add('active');
+                    container.appendChild(card);
+                });
             },
 
-            closePrintPreview: () => {
-                document.getElementById('print-overlay').classList.remove('active');
-            },
-
-            downloadPrintImage: async () => {
-                const content = document.getElementById('print-content-node');
-                const btn = document.getElementById('btn-download-img');
-                btn.textContent = "生成中...";
-                btn.disabled = true;
-
-                try {
-                    const canvas = await html2canvas(content, {
-                        scale: 2,
-                        useCORS: true,
-                        backgroundColor: '#ffffff',
-                        logging: false,
-                        windowWidth: content.scrollWidth,
-                        windowHeight: content.scrollHeight
-                    });
-                    const image = canvas.toDataURL("image/png");
-                    const link = document.createElement('a');
-                    link.href = image;
-                    link.download = `Document-${Date.now()}.png`;
-                    link.click();
-                } catch (err) {
-                    console.error(err);
-                    alert("圖片生成失敗");
-                } finally {
-                    btn.innerHTML = '<i data-lucide="image" width="18" height="18"></i> 下載圖片';
-                    btn.disabled = false;
-                    lucide.createIcons();
+            adjStock(id, amount) {
+                const item = Store.db.inventory.find(i => i.id === id);
+                if (item) {
+                    item.stock += amount;
+                    if(item.stock < 0) item.stock = 0;
+                    Store.save();
+                    this.renderInventory();
                 }
             },
 
-            // Import/Export
-            openImportModal: () => document.getElementById('import-modal').showModal(),
+            // --- System Actions ---
+            quickAction() {
+                // Determine context or ask
+                this.openModal('customer-modal');
+            },
             
-            downloadTemplate: () => {
-                const headers = "姓名,電話,車型,車身序號,規格,購車日期(YYYY-MM-DD),保固天數,交車金額,類別(購車/維修),備註";
-                const example = "王小明,0912345678,Gogoro 2,VIN123456789,白色,2024-01-01,730,85000,購車,這是範例資料";
-                const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers + "\n" + example;
-                const encodedUri = encodeURI(csvContent);
+            exportCSV() {
+                const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
+                    + "ID,Name,Phone,Model,PurchaseDate\n"
+                    + Store.db.customers.map(c => `${c.id},${c.name},${c.phone},${c.model},${c.purchaseDate}`).join("\n");
+                
                 const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", "customer_import_template.csv");
+                link.href = encodeURI(csvContent);
+                link.download = "diter_customers_backup.csv";
                 document.body.appendChild(link);
                 link.click();
-                document.body.removeChild(link);
             },
 
-            handleFileSelect: (input) => {
-                const file = input.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const text = e.target.result;
-                    const rows = text.split('\n').map(r => r.trim()).filter(r => r);
-                    if (rows.length < 2) {
-                        document.getElementById('import-error').textContent = "格式錯誤";
-                        return;
-                    }
-                    
-                    const data = rows.slice(1).map(row => {
-                        const cols = row.split(',');
-                        let pDate = cols[5]?.trim();
-                        if (!pDate || isNaN(new Date(pDate).getTime())) pDate = new Date().toISOString().split('T')[0];
-                        
-                        return {
-                            name: cols[0]?.trim() || '未命名',
-                            phone: cols[1]?.trim() || '',
-                            model: cols[2]?.trim() || '',
-                            vin: cols[3]?.trim() || '',
-                            specs: cols[4]?.trim() || '',
-                            purchaseDate: pDate,
-                            warrantyDays: parseInt(cols[6]?.trim()) || 365,
-                            price: parseInt(cols[7]?.trim()) || 0,
-                            category: (cols[8]?.trim() === '維修' ? 'repair' : 'purchase'),
-                            notes: cols[9]?.trim() || ''
-                        };
-                    }).filter(i => i.name && i.phone);
-
-                    importData = data;
-                    
-                    // Preview
-                    const previewBody = document.getElementById('import-preview-body');
-                    previewBody.innerHTML = '';
-                    importData.slice(0, 3).forEach(item => {
-                        const tr = document.createElement('tr');
-                        tr.className = "border-t";
-                        tr.innerHTML = `<td class="px-3 py-2">${item.name}</td><td class="px-3 py-2">${item.phone}</td><td class="px-3 py-2">${item.model}</td><td class="px-3 py-2">${item.category==='repair'?'維修':'購車'}</td>`;
-                        previewBody.appendChild(tr);
-                    });
-                    
-                    document.getElementById('import-preview').classList.remove('hidden');
-                    document.getElementById('start-import-btn').disabled = false;
-                };
-                reader.readAsText(file);
-            },
-
-            executeImport: async () => {
-                const btn = document.getElementById('start-import-btn');
-                btn.textContent = "匯入中...";
-                btn.disabled = true;
-                
-                try {
-                    const batch = writeBatch(db);
-                    const ref = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'customers');
-                    // Process max 450
-                    const chunk = importData.slice(0, 450);
-                    
-                    chunk.forEach(item => {
-                        const newRef = doc(ref);
-                        batch.set(newRef, { ...item, records: [], createdAt: Timestamp.now() });
-                    });
-                    
-                    await batch.commit();
-                    alert(`成功匯入 ${chunk.length} 筆資料`);
-                    document.getElementById('import-modal').close();
-                } catch (err) {
-                    alert('匯入失敗');
-                    console.error(err);
-                } finally {
-                    btn.textContent = "開始匯入";
-                    btn.disabled = false;
+            clearAllData() {
+                if(confirm("警告：這將永久刪除所有資料且無法復原！確定嗎？")) {
+                    localStorage.removeItem('diter_ev_db');
+                    location.reload();
                 }
             },
 
-            exportToCSV: () => {
-                const headers = ["類別", "姓名", "電話", "車型", "序號(VIN)", "規格", "購車日", "保固天數", "交車金額", "備註"];
-                const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers.join(",") + "\n" + customers.map(c => {
-                    const cat = c.category === 'repair' ? '維修客戶' : '購車客戶';
-                    return `${cat},${c.name},'${c.phone},${c.model},${c.vin},${c.specs},${c.purchaseDate},${c.warrantyDays},${c.price || 0},${c.notes}`;
-                }).join("\n");
-                
-                const link = document.createElement("a");
-                link.setAttribute("href", encodeURI(csvContent));
-                link.setAttribute("download", "customer_data_export.csv");
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+            syncData() {
+                alert("功能提示：此版本為 Pro 單機版，資料目前安全儲存於此瀏覽器中。\n\n如需啟用 Google Sheet 多裝置雲端同步功能，請聯絡開發人員配置 API Endpoint。");
             }
         };
 
-        // --- Event Listeners ---
-        
-        // Show Customer Detail helper (attached to window.app not needed, local scope is tricky)
-        window.showDetail = (id) => {
-            selectedCustomerId = id;
-            setView('detail');
-        };
+        // Boot
+        window.onload = () => app.init();
 
-        document.getElementById('customer-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const data = Object.fromEntries(fd.entries());
-            
-            // Format types
-            data.price = parseInt(data.price) || 0;
-            data.warrantyDays = parseInt(data.warrantyDays) || 365;
-
-            try {
-                if (formMode === 'add') {
-                    await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'customers'), {
-                        ...data,
-                        records: [],
-                        createdAt: Timestamp.now()
-                    });
-                } else {
-                    await updateDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'customers', selectedCustomerId), data);
-                }
-                setView('list');
-            } catch (err) {
-                alert('儲存失敗');
-                console.error(err);
-            }
-        });
-
-        document.getElementById('record-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const note = document.getElementById('record-note').value;
-            const type = document.getElementById('record-type-input').value;
-            
-            const c = customers.find(x => x.id === selectedCustomerId);
-            const newRecord = {
-                id: generateId(),
-                date: new Date().toISOString(),
-                type: type,
-                notes: note
-            };
-            
-            const updatedRecords = [newRecord, ...(c.records || [])];
-            
-            try {
-                await updateDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'customers', selectedCustomerId), {
-                    records: updatedRecords
-                });
-                document.getElementById('record-note').value = '';
-            } catch (err) {
-                alert('新增紀錄失敗');
-            }
-        });
-
-        // --- Init ---
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                // Init listener
-                const q = query(
-                    collection(db, 'artifacts', appId, 'users', user.uid, 'customers'),
-                    orderBy('createdAt', 'desc')
-                );
-                onSnapshot(q, (snapshot) => {
-                    customers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    // If in detail view, refresh it
-                    if (!document.getElementById('view-detail').classList.contains('hidden')) {
-                        // Check if current selected still exists
-                        if (!customers.find(c => c.id === selectedCustomerId)) {
-                            setView('list');
-                        } else {
-                            renderCustomerDetail();
-                        }
-                    } else if (!document.getElementById('view-list').classList.contains('hidden')) {
-                        renderCustomerList(document.getElementById('search-input').value);
-                    }
-                });
-            } else {
-                signInAnonymously(auth);
-            }
-        });
-
-        // Initialize Icons
-        lucide.createIcons();
     </script>
 </body>
 </html>
