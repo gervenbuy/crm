@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>迪特軍 EV 維修管理系統</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sidebar: #0c1220;
+  --sidebar-hover: #1a2540;
+  --accent: #3b82f6;
+  --accent-dark: #2563eb;
+  --surface: #ffffff;
+  --bg: #f0f2f7;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
+}
+* { box-sizing: border-box; }
+body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+
+/* Loading */
+#loading-overlay { position:fixed;inset:0;background:rgba(255,255,255,.9);z-index:999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px; }
+.spinner { width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* Sidebar */
+#sidebar { width:220px;background:var(--sidebar);display:flex;flex-direction:column;height:100vh;position:relative;z-index:10; }
+.nav-btn { display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;border-radius:8px;font-size:13.5px;font-weight:500;color:#94a3b8;transition:all .15s;text-align:left;cursor:pointer; }
+.nav-btn:hover { background:var(--sidebar-hover);color:#e2e8f0; }
+.nav-btn.active { background:var(--accent);color:#fff; }
+.nav-btn .nav-badge { margin-left:auto;background:rgba(255,255,255,.25);color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;font-weight:700; }
+
+/* Main */
+#main { flex:1;display:flex;flex-direction:column;min-width:0;height:100vh; }
+#topbar { height:58px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0; }
+#content { flex:1;overflow-y:auto;padding:24px; }
+
+/* Views */
+.view { display:none; }
+.view.active { display:block; }
+
+/* Cards */
+.card { background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px; }
+.stat-card { background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden;cursor:default; }
+.stat-card:hover { border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.08); }
+
+/* Tables */
+.data-table { width:100%;border-collapse:collapse;font-size:13.5px; }
+.data-table th { padding:10px 16px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:#f8fafc;border-bottom:1px solid var(--border); }
+.data-table td { padding:12px 16px;border-bottom:1px solid #f1f5f9;vertical-align:middle; }
+.data-table tr:hover td { background:#f8fafc; }
+.data-table tr:last-child td { border-bottom:none; }
+
+/* Badges */
+.badge { display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700; }
+.badge-blue { background:#eff6ff;color:#2563eb; }
+.badge-green { background:#f0fdf4;color:#16a34a; }
+.badge-yellow { background:#fffbeb;color:#b45309; }
+.badge-orange { background:#fff7ed;color:#c2410c; }
+.badge-red { background:#fef2f2;color:#dc2626; }
+.badge-gray { background:#f1f5f9;color:#475569; }
+
+/* Forms */
+.form-label { display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:5px; }
+.form-input { width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13.5px;outline:none;font-family:inherit;transition:border-color .15s,box-shadow .15s;background:#fff;color:var(--text); }
+.form-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.1); }
+.form-input[type="number"]::-webkit-inner-spin-button { opacity:.5; }
+textarea.form-input { resize:vertical;min-height:70px; }
+select.form-input { cursor:pointer; }
+
+/* Buttons */
+.btn { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap; }
+.btn:active { transform:scale(.97); }
+.btn-primary { background:var(--accent);color:#fff;border:1.5px solid var(--accent-dark); }
+.btn-primary:hover { background:var(--accent-dark); }
+.btn-dark { background:#0f172a;color:#fff;border:1.5px solid #0f172a; }
+.btn-dark:hover { background:#1e293b; }
+.btn-ghost { background:transparent;color:var(--muted);border:1.5px solid var(--border); }
+.btn-ghost:hover { background:#f8fafc;color:var(--text); }
+.btn-danger { background:#fef2f2;color:var(--danger);border:1.5px solid #fecaca; }
+.btn-danger:hover { background:#fee2e2; }
+.btn-success { background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0; }
+.btn-success:hover { background:#dcfce7; }
+.btn-sm { padding:5px 11px;font-size:12px;border-radius:6px; }
+.btn-icon { padding:6px;border-radius:6px; }
+
+/* Modal (no native dialog, use custom) */
+.modal-backdrop { position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;pointer-events:none; }
+.modal-backdrop.open { opacity:1;pointer-events:all; }
+.modal-box { background:#fff;border-radius:14px;width:90%;max-width:640px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,.2);transform:translateY(12px);transition:transform .2s; }
+.modal-backdrop.open .modal-box { transform:translateY(0); }
+.modal-box.wide { max-width:780px; }
+.modal-header { padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0; }
+.modal-body { overflow-y:auto;padding:20px 24px;flex:1; }
+.modal-footer { padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0; }
+
+/* Repair card */
+.repair-card { border:1.5px solid var(--border);border-radius:10px;padding:16px;background:#fff;transition:box-shadow .15s; }
+.repair-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.06); }
+.repair-card.status-pending { border-left:4px solid var(--warning); }
+.repair-card.status-fixing { border-left:4px solid var(--accent);background:#fafcff; }
+.repair-card.status-completed { border-left:4px solid var(--success);opacity:.85; }
+
+/* Type selector */
+.type-pill { display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--border);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--muted); }
+.type-pill:hover { border-color:#94a3b8;color:var(--text); }
+.type-pill.active-repair { background:#fff7ed;border-color:#f97316;color:#c2410c; }
+.type-pill.active-battery { background:#f0fdf4;border-color:#22c55e;color:#15803d; }
+.type-pill.active-regular { background:#eff6ff;border-color:var(--accent);color:var(--accent-dark); }
+
+/* Cost mode toggle */
+.mode-tab { padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);transition:all .15s; }
+.mode-tab.active { border-bottom-color:var(--accent);color:var(--accent); }
+
+/* KPI */
+.kpi-val { font-family:'JetBrains Mono',monospace;font-weight:700; }
+
+/* Animations */
+.fade-up { animation:fadeUp .25s ease both; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* Inventory */
+.inv-card { background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:16px;transition:border-color .15s; }
+.inv-card:hover { border-color:var(--accent); }
+.stock-low { color:var(--danger);font-weight:700; }
+
+/* Print */
+@media print {
+  #sidebar, #topbar, .no-print { display:none!important; }
+  body { overflow:visible; }
+  #content { padding:0; }
+}
+
+/* Responsive */
+@media(max-width:768px) {
+  #sidebar { width:56px; }
+  .nav-label { display:none; }
+  .sidebar-title { display:none; }
+}
+</style>
+</head>
+<body class="flex">
+
+<!-- Loading -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p style="font-size:13px;color:var(--muted);font-weight:600" id="loading-text">資料同步中...</p>
+</div>
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div style="padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,.06)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="background:var(--accent);padding:8px;border-radius:8px;color:#fff;flex-shrink:0">
+        <i data-lucide="zap" width="18" height="18"></i>
+      </div>
+      <div class="sidebar-title">
+        <div style="color:#f1f5f9;font-weight:900;font-size:14px;letter-spacing:.02em">迪特軍 EV</div>
+        <div style="color:#475569;font-size:10.5px;font-weight:500">維修管理系統</div>
+      </div>
+    </div>
+  </div>
+
+  <nav style="flex:1;overflow-y:auto;padding:12px 10px;display:flex;flex-direction:column;gap:2px">
+    <button class="nav-btn active" id="nav-dashboard" onclick="App.nav('dashboard')">
+      <i data-lucide="layout-dashboard" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">儀表板</span>
+    </button>
+    <button class="nav-btn" id="nav-customers" onclick="App.nav('customers')">
+      <i data-lucide="users" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">客戶 &amp; 車籍</span>
+    </button>
+    <button class="nav-btn" id="nav-repairs" onclick="App.nav('repairs')">
+      <i data-lucide="wrench" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">維修工單</span>
+      <span class="nav-badge" id="badge-repairs" style="display:none">0</span>
+    </button>
+    <button class="nav-btn" id="nav-inventory" onclick="App.nav('inventory')">
+      <i data-lucide="package" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">零件庫存</span>
+      <span class="nav-badge" id="badge-inventory" style="display:none;background:#ef4444">!</span>
+    </button>
+    <div style="border-top:1px solid rgba(255,255,255,.06);margin:8px 0"></div>
+    <button class="nav-btn" id="nav-settings" onclick="App.nav('settings')">
+      <i data-lucide="settings" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">系統設定</span>
+    </button>
+  </nav>
+
+  <div style="padding:12px;border-top:1px solid rgba(255,255,255,.06)">
+    <div style="background:var(--sidebar-hover);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0">D</div>
+      <div class="sidebar-title" style="min-width:0">
+        <div style="color:#e2e8f0;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">迪特軍</div>
+        <div id="conn-status" style="color:#4ade80;font-size:10px;font-weight:500">● 連線中</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div id="main">
+  <!-- Top Bar -->
+  <div id="topbar" class="no-print">
+    <div style="display:flex;align-items:center;gap:12px">
+      <h2 id="page-title" style="font-size:16px;font-weight:700;color:var(--text)">儀表板</h2>
+      <span id="page-subtitle" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn btn-ghost" style="font-size:12px" onclick="App.syncData()">
+        <i data-lucide="refresh-cw" width="14" height="14"></i> 同步
+      </button>
+      <button class="btn btn-primary" onclick="App.quickAdd()">
+        <i data-lucide="plus" width="15" height="15"></i> 新增
+      </button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div id="content">
+
+    <!-- DASHBOARD -->
+    <div id="view-dashboard" class="view active fade-up">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px" id="stat-grid">
+        <div class="stat-card">
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">本月營收</p>
+          <div class="kpi-val" id="kpi-revenue" style="font-size:26px;margin:6px 0 4px">$0</div>
+          <p style="font-size:11px;color:var(--success)" id="kpi-rev-sub">—</p>
+        </div>
+        <div class="stat-card">
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">進行中工單</p>
+          <div class="kpi-val" id="kpi-active" style="font-size:26px;margin:6px 0 4px;color:var(--warning)">0</div>
+          <p style="font-size:11px;color:var(--muted)">待修 + 維修中</p>
+        </div>
+        <div class="stat-card">
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">客戶數</p>
+          <div class="kpi-val" id="kpi-customers" style="font-size:26px;margin:6px 0 4px">0</div>
+          <p style="font-size:11px;color:var(--muted)">累積建檔</p>
+        </div>
+        <div class="stat-card">
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">庫存低水位</p>
+          <div class="kpi-val" id="kpi-low" style="font-size:26px;margin:6px 0 4px;color:var(--danger)">0</div>
+          <p style="font-size:11px;color:var(--muted)">項需補貨</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px">
+        <div class="card">
+          <h3 style="font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:6px">
+            <i data-lucide="clock" width="15" height="15" style="color:var(--accent)"></i> 最近維修工單
+          </h3>
+          <table class="data-table">
+            <thead><tr><th>客戶</th><th>車型</th><th>項目</th><th>狀態</th><th class="text-right">金額</th></tr></thead>
+            <tbody id="dash-recent"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3 style="font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:6px">
+            <i data-lucide="pie-chart" width="15" height="15" style="color:var(--accent)"></i> 工單狀態分佈
+          </h3>
+          <canvas id="status-chart" style="max-height:200px"></canvas>
+          <div id="chart-legend" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CUSTOMERS -->
+    <div id="view-customers" class="view fade-up">
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+        <div style="flex:1;max-width:380px;position:relative">
+          <i data-lucide="search" width="15" height="15" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted)"></i>
+          <input class="form-input" id="cust-search" style="padding-left:34px" placeholder="搜尋姓名、電話、車牌…" oninput="App.renderCustomers()">
+        </div>
+        <select class="form-input" id="cust-filter" style="width:130px" onchange="App.renderCustomers()">
+          <option value="all">全部客戶</option>
+          <option value="purchase">購車客戶</option>
+          <option value="repair">純維修</option>
+        </select>
+        <button class="btn btn-primary" onclick="App.openCustomerModal()">
+          <i data-lucide="user-plus" width="15" height="15"></i> 新增客戶
+        </button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="data-table">
+          <thead><tr><th>姓名</th><th>車型 / 車牌</th><th>電話</th><th>保固</th><th>最後服務</th><th style="text-align:right">操作</th></tr></thead>
+          <tbody id="cust-list"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REPAIRS -->
+    <div id="view-repairs" class="view fade-up">
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px;position:relative">
+          <i data-lucide="search" width="15" height="15" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted)"></i>
+          <input class="form-input" id="repair-search" style="padding-left:34px" placeholder="搜尋客戶或維修項目…" oninput="App.renderRepairs()">
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap" id="repair-filter-btns">
+          <button class="btn btn-ghost btn-sm repair-filter active-filter" data-f="all" onclick="App.setRepairFilter(this,'all')">全部</button>
+          <button class="btn btn-ghost btn-sm repair-filter" data-f="pending" onclick="App.setRepairFilter(this,'pending')">待修</button>
+          <button class="btn btn-ghost btn-sm repair-filter" data-f="fixing" onclick="App.setRepairFilter(this,'fixing')">維修中</button>
+          <button class="btn btn-ghost btn-sm repair-filter" data-f="completed" onclick="App.setRepairFilter(this,'completed')">已完工</button>
+        </div>
+        <button class="btn btn-primary" onclick="App.openRepairModal(null)">
+          <i data-lucide="plus" width="15" height="15"></i> 新增工單
+        </button>
+      </div>
+      <div id="repair-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <!-- INVENTORY -->
+    <div id="view-inventory" class="view fade-up">
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+        <select class="form-input" id="inv-filter" style="width:160px" onchange="App.renderInventory()">
+          <option value="all">所有類別</option>
+          <option value="tire">輪胎</option>
+          <option value="battery">電池/電系</option>
+          <option value="oil">油品/耗材</option>
+          <option value="other">其他</option>
+        </select>
+        <button class="btn btn-dark" onclick="App.openInventoryModal()">
+          <i data-lucide="plus" width="15" height="15"></i> 新增零件
+        </button>
+      </div>
+      <div id="inv-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="view-settings" class="view fade-up">
+      <div style="max-width:560px;display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--accent)">雲端同步設定</h3>
+          <label class="form-label">Google Apps Script URL</label>
+          <input class="form-input" id="setting-url" placeholder="https://script.google.com/macros/s/...">
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" onclick="App.saveApiUrl()">儲存連線</button>
+            <button class="btn btn-ghost btn-sm" onclick="App.initSheets()">初始化工作表</button>
+            <button class="btn btn-ghost btn-sm" onclick="App.syncData()">強制同步</button>
+          </div>
+          <p style="font-size:11px;color:var(--muted);margin-top:8px">初始化將建立 Customers、Repairs、Inventory 三個工作表。</p>
+        </div>
+        <div class="card">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">資料管理</h3>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-ghost btn-sm" onclick="App.exportCSV()"><i data-lucide="download" width="13" height="13"></i> 匯出 CSV</button>
+            <button class="btn btn-danger btn-sm" onclick="App.clearData()"><i data-lucide="trash-2" width="13" height="13"></i> 清除所有資料</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:6px">版本資訊</h3>
+          <p style="font-size:12px;color:var(--muted)">迪特軍 EV 維修管理系統 v3.0 · 支援 Google Sheet 雲端同步</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ===== MODALS ===== -->
+
+<!-- Customer Modal -->
+<div id="modal-customer" class="modal-backdrop">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <h3 id="cust-modal-title" style="font-size:15px;font-weight:700">新增客戶</h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-customer')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">基本資料</p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label class="form-label">客戶姓名 *</label>
+              <input class="form-input" id="cf-name" required>
+            </div>
+            <div>
+              <label class="form-label">聯絡電話 *</label>
+              <input class="form-input" id="cf-phone" type="tel">
+            </div>
+            <div>
+              <label class="form-label">地址（選填）</label>
+              <input class="form-input" id="cf-address">
+            </div>
+            <div>
+              <label class="form-label">備註</label>
+              <textarea class="form-input" id="cf-notes" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">車輛資訊</p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label class="form-label">客戶類別</label>
+              <select class="form-input" id="cf-category">
+                <option value="purchase">購車客戶（含保固）</option>
+                <option value="repair">純維修客戶</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">車型型號 *</label>
+              <input class="form-input" id="cf-model" placeholder="e.g. Gogoro 2, Ai-1">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div>
+                <label class="form-label">車牌</label>
+                <input class="form-input" id="cf-plate" placeholder="ABC-1234" style="font-family:'JetBrains Mono',monospace;text-align:center">
+              </div>
+              <div>
+                <label class="form-label">車身序號(VIN)</label>
+                <input class="form-input" id="cf-vin" style="font-family:'JetBrains Mono',monospace;font-size:11px">
+              </div>
+            </div>
+            <div>
+              <label class="form-label">規格 / 顏色</label>
+              <input class="form-input" id="cf-specs">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div>
+                <label class="form-label">購車日期</label>
+                <input class="form-input" id="cf-purchase-date" type="date">
+              </div>
+              <div>
+                <label class="form-label">交車金額</label>
+                <input class="form-input" id="cf-price" type="number" placeholder="0">
+              </div>
+            </div>
+            <div>
+              <label class="form-label">保固天數</label>
+              <input class="form-input" id="cf-warranty" type="number" value="365">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <input type="hidden" id="cf-id">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-customer')">取消</button>
+      <button class="btn btn-primary" onclick="App.saveCustomer()"><i data-lucide="save" width="14" height="14"></i> 儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Repair Modal -->
+<div id="modal-repair" class="modal-backdrop">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <h3 id="repair-modal-title" style="font-size:15px;font-weight:700">新增維修工單</h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-repair')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <!-- Customer picker -->
+        <div>
+          <label class="form-label">選擇客戶 *</label>
+          <select class="form-input" id="rf-customer">
+            <option value="">— 請選擇客戶 —</option>
+          </select>
+        </div>
+
+        <!-- Status + Mileage -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label class="form-label">工單狀態</label>
+            <select class="form-input" id="rf-status">
+              <option value="pending">待修中</option>
+              <option value="fixing">維修中</option>
+              <option value="completed">已完工</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">里程數（KM）</label>
+            <input class="form-input" id="rf-mileage" type="number" placeholder="選填">
+          </div>
+        </div>
+
+        <!-- Service type pills -->
+        <div>
+          <label class="form-label" style="margin-bottom:8px">服務類型</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="type-pill active-repair" id="rtype-repair" onclick="App.setRepairType('repair')"><i data-lucide="wrench" width="13" height="13"></i>故障維修</button>
+            <button type="button" class="type-pill" id="rtype-regular" onclick="App.setRepairType('regular')"><i data-lucide="calendar-check" width="13" height="13"></i>定期保養</button>
+            <button type="button" class="type-pill" id="rtype-battery" onclick="App.setRepairType('battery')"><i data-lucide="battery" width="13" height="13"></i>更換電池</button>
+          </div>
+          <input type="hidden" id="rf-type" value="repair">
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="form-label">維修項目描述 *</label>
+          <textarea class="form-input" id="rf-desc" rows="3" placeholder="例如：儀表更換、更換後輪胎、定期保養…"></textarea>
+        </div>
+
+        <!-- Cost section - toggle mode -->
+        <div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
+          <div style="display:flex;border-bottom:1px solid var(--border);background:#f8fafc;padding:0 16px">
+            <button type="button" class="mode-tab active" id="mode-simple" onclick="App.setCostMode('simple')">簡易模式（直接輸入總額）</button>
+            <button type="button" class="mode-tab" id="mode-detail" onclick="App.setCostMode('detail')">明細模式（零件 + 工資）</button>
+          </div>
+          <div style="padding:14px 16px">
+            <!-- Simple mode -->
+            <div id="cost-simple">
+              <label class="form-label">工單總金額（選填）</label>
+              <div style="position:relative">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;font-family:'JetBrains Mono',monospace">$</span>
+                <input class="form-input" id="rf-total-simple" type="number" min="0" placeholder="0" style="padding-left:28px;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700" oninput="App.syncCostFields()">
+              </div>
+              <p style="font-size:11px;color:var(--muted);margin-top:5px">例如：儀表更換 → 直接輸入 1300</p>
+            </div>
+            <!-- Detail mode -->
+            <div id="cost-detail" style="display:none">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div>
+                  <label class="form-label">零件費用</label>
+                  <input class="form-input" id="rf-parts" type="number" value="0" oninput="App.calcTotal()">
+                </div>
+                <div>
+                  <label class="form-label">工資 / 服務費</label>
+                  <input class="form-input" id="rf-labor" type="number" value="0" oninput="App.calcTotal()">
+                </div>
+              </div>
+              <div style="margin-top:12px;background:#f0f7ff;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:13px;font-weight:600;color:var(--muted)">合計</span>
+                <span id="rf-total-detail" style="font-size:20px;font-weight:900;color:var(--accent);font-family:'JetBrains Mono',monospace">$0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Internal note -->
+        <div>
+          <label class="form-label">內部備註（選填）</label>
+          <textarea class="form-input" id="rf-note" rows="2" placeholder="給自己看的備注，不印在工單上…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <input type="hidden" id="rf-id">
+      <input type="hidden" id="rf-cost-mode" value="simple">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-repair')">取消</button>
+      <button class="btn btn-primary" onclick="App.saveRepair()"><i data-lucide="save" width="14" height="14"></i> 儲存工單</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inventory Modal -->
+<div id="modal-inventory" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="inv-modal-title" style="font-size:15px;font-weight:700">新增庫存零件</h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-inventory')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label class="form-label">零件名稱 *</label>
+          <input class="form-input" id="if-name">
+        </div>
+        <div>
+          <label class="form-label">類別</label>
+          <select class="form-input" id="if-cat">
+            <option value="tire">輪胎</option>
+            <option value="battery">電池/電系</option>
+            <option value="oil">油品/耗材</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label class="form-label">目前庫存（件）</label>
+            <input class="form-input" id="if-stock" type="number" value="0">
+          </div>
+          <div>
+            <label class="form-label">單價（$）</label>
+            <input class="form-input" id="if-price" type="number" value="0">
+          </div>
+        </div>
+        <div>
+          <label class="form-label">低庫存警示數量</label>
+          <input class="form-input" id="if-min" type="number" value="2" placeholder="低於此數量會顯示警示">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <input type="hidden" id="if-id">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-inventory')">取消</button>
+      <button class="btn btn-dark" onclick="App.saveInventory()"><i data-lucide="save" width="14" height="14"></i> 儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div id="modal-confirm" class="modal-backdrop">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-header">
+      <h3 id="confirm-title" style="font-size:15px;font-weight:700">確認刪除</h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-confirm')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-msg" style="font-size:13.5px;color:var(--muted)">確定要刪除嗎？此操作無法復原。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-confirm')">取消</button>
+      <button class="btn btn-danger" id="confirm-ok-btn">確認刪除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====================================================
+//  API
+// ====================================================
+const API = {
+  url: '',
+  init() {
+    this.url = localStorage.getItem('diter_api_url') || 'https://script.google.com/macros/s/AKfycbwoMdmxz7tkgrKTvHx2AnO2lPookVs5m36fopxTqpbW1RKKJcIpgJwEHRLyvzOR34Kq/exec';
+    const el = document.getElementById('setting-url');
+    if(el) el.value = this.url;
+    this.updateStatus(!!this.url);
+  },
+  updateStatus(on) {
+    const el = document.getElementById('conn-status');
+    if(!el) return;
+    el.textContent = on ? '● 連線中' : '● 本地模式';
+    el.style.color = on ? '#4ade80' : '#64748b';
+  },
+  async call(action, payload={}) {
+    if(!this.url) return null;
+    try {
+      const r = await fetch(this.url, {
+        method:'POST', redirect:'follow',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({action, ...payload})
+      });
+      return await r.json();
+    } catch(e) {
+      console.warn('API error', e);
+      return null;
+    }
+  }
+};
+
+// ====================================================
+//  Store
+// ====================================================
+const Store = {
+  db: { customers:[], repairs:[], inventory:[] },
+  init() {
+    API.init();
+    const raw = localStorage.getItem('diter_db_v3');
+    if(raw) {
+      try { this.db = JSON.parse(raw); } catch(e){}
+    }
+    if(!this.db.customers) this.db.customers = [];
+    if(!this.db.repairs)   this.db.repairs = [];
+    if(!this.db.inventory) this.db.inventory = [];
+  },
+  save() {
+    localStorage.setItem('diter_db_v3', JSON.stringify(this.db));
+  },
+  async syncDown() {
+    loading(true);
+    const res = await API.call('read');
+    loading(false);
+    if(res?.status === 'success' && res.data) {
+      if(res.data.customers) this.db.customers = res.data.customers;
+      if(res.data.repairs)   this.db.repairs   = res.data.repairs;
+      if(res.data.inventory) this.db.inventory = res.data.inventory;
+      this.save();
+      return true;
+    }
+    return false;
+  },
+  async push(table, data) {
+    if(!API.url) return;
+    API.call('upsert', {table, data});
+  },
+  async del(table, id) {
+    if(!API.url) return;
+    API.call('delete', {table, id});
+  }
+};
+
+// ====================================================
+//  Helpers
+// ====================================================
+const gid = () => '_' + Math.random().toString(36).substr(2,9);
+const fmt$ = n => { const v = parseInt(n)||0; return v===0 ? '—' : '$' + v.toLocaleString(); };
+const fmtDate = s => { if(!s) return '—'; const d=new Date(s); return isNaN(d)?'—':d.toLocaleDateString('zh-TW'); };
+
+function loading(on, txt='同步中…') {
+  const el = document.getElementById('loading-overlay');
+  el.style.display = on ? 'flex' : 'none';
+  if(on) document.getElementById('loading-text').textContent = txt;
+}
+
+function warranty(c) {
+  if(!c.purchaseDate) return {ok:false,days:0,end:'—'};
+  const s = new Date(c.purchaseDate);
+  const e = new Date(s); e.setDate(s.getDate()+(parseInt(c.warrantyDays)||365));
+  const days = Math.ceil((e-Date.now())/86400000);
+  return {ok:days>0, days:days>0?days:0, end:e.toLocaleDateString('zh-TW')};
+}
+
+let _repairFilter = 'all';
+let _statusChart = null;
+
+// ====================================================
+//  App
+// ====================================================
+const App = {
+  currentView: 'dashboard',
+
+  async init() {
+    Store.init();
+    lucide.createIcons();
+    this.nav('dashboard');
+    this.updateKPIs();
+    // try cloud sync silently
+    const ok = await Store.syncDown();
+    if(ok) { this.nav(this.currentView); this.updateKPIs(); }
+  },
+
+  nav(v) {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('nav-'+v).classList.add('active');
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-'+v).classList.add('active');
+    document.getElementById('view-'+v).classList.remove('fade-up');
+    void document.getElementById('view-'+v).offsetWidth;
+    document.getElementById('view-'+v).classList.add('fade-up');
+    this.currentView = v;
+    const titles = {dashboard:'儀表板',customers:'客戶 & 車籍',repairs:'維修工單中心',inventory:'零件庫存',settings:'系統設定'};
+    document.getElementById('page-title').textContent = titles[v]||v;
+    if(v==='dashboard') this.renderDashboard();
+    if(v==='customers') this.renderCustomers();
+    if(v==='repairs')   this.renderRepairs();
+    if(v==='inventory') this.renderInventory();
+    lucide.createIcons();
+  },
+
+  quickAdd() {
+    if(this.currentView==='customers') this.openCustomerModal();
+    else if(this.currentView==='repairs') this.openRepairModal(null);
+    else if(this.currentView==='inventory') this.openInventoryModal();
+    else this.openCustomerModal();
+  },
+
+  async syncData() {
+    const ok = await Store.syncDown();
+    if(ok) { this.nav(this.currentView); this.updateKPIs(); }
+    else alert('同步失敗，請確認 API 連線設定。');
+  },
+
+  // ---- KPIs ----
+  updateKPIs() {
+    const now = new Date();
+    const mo = now.getMonth(), yr = now.getFullYear();
+    const rev = Store.db.repairs.reduce((s,r) => {
+      const d = new Date(r.date);
+      if(d.getMonth()===mo && d.getFullYear()===yr && r.status==='completed')
+        s += (parseInt(r.totalCost)||0);
+      return s;
+    }, 0);
+    document.getElementById('kpi-revenue').textContent = '$' + rev.toLocaleString();
+    document.getElementById('kpi-active').textContent = Store.db.repairs.filter(r=>r.status!=='completed').length;
+    document.getElementById('kpi-customers').textContent = Store.db.customers.length;
+    const low = Store.db.inventory.filter(i=>i.stock<=(parseInt(i.minStock)||2));
+    document.getElementById('kpi-low').textContent = low.length;
+    const badge = document.getElementById('badge-repairs');
+    const pending = Store.db.repairs.filter(r=>r.status!=='completed').length;
+    badge.textContent = pending; badge.style.display = pending>0 ? '' : 'none';
+    const ibadge = document.getElementById('badge-inventory');
+    ibadge.style.display = low.length>0 ? '' : 'none';
+  },
+
+  // ---- Dashboard ----
+  renderDashboard() {
+    const tbody = document.getElementById('dash-recent');
+    tbody.innerHTML = '';
+    const sorted = [...Store.db.repairs].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
+    if(!sorted.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;font-size:12px">尚無工單紀錄</td></tr>'; }
+    sorted.forEach(r => {
+      const c = Store.db.customers.find(x=>x.id===r.customerId)||{name:'—',model:'—'};
+      const smap = {pending:['badge-yellow','待修'],fixing:['badge-blue','維修中'],completed:['badge-green','已完工']};
+      const [scls,stxt] = smap[r.status]||['badge-gray','—'];
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td style="font-weight:600">${c.name}</td><td style="font-size:12px;color:var(--muted)">${c.model||'—'}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${r.description||'—'}</td><td><span class="badge ${scls}">${stxt}</span></td><td style="text-align:right;font-weight:700;font-family:'JetBrains Mono',monospace">${fmt$(r.totalCost)}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    // Chart
+    const pending  = Store.db.repairs.filter(r=>r.status==='pending').length;
+    const fixing   = Store.db.repairs.filter(r=>r.status==='fixing').length;
+    const complete = Store.db.repairs.filter(r=>r.status==='completed').length;
+    const ctx = document.getElementById('status-chart').getContext('2d');
+    if(_statusChart) _statusChart.destroy();
+    _statusChart = new Chart(ctx, {
+      type:'doughnut',
+      data: { labels:['待修','維修中','已完工'], datasets:[{ data:[pending,fixing,complete], backgroundColor:['#fbbf24','#3b82f6','#22c55e'], borderWidth:0, hoverOffset:4 }] },
+      options: { cutout:'72%', plugins:{ legend:{display:false} }, animation:{duration:600} }
+    });
+    document.getElementById('chart-legend').innerHTML = [
+      ['#fbbf24','待修',pending],['#3b82f6','維修中',fixing],['#22c55e','已完工',complete]
+    ].map(([c,n,v])=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px"><span style="width:10px;height:10px;border-radius:3px;background:${c};flex-shrink:0"></span><span style="color:var(--muted)">${n}</span><span style="font-weight:700">${v}</span></div>`).join('');
+  },
+
+  // ---- Customers ----
+  renderCustomers() {
+    const tbody = document.getElementById('cust-list');
+    tbody.innerHTML = '';
+    const q = (document.getElementById('cust-search').value||'').toLowerCase();
+    const filt = document.getElementById('cust-filter').value;
+    const list = Store.db.customers.filter(c => {
+      const mq = !q || c.name.toLowerCase().includes(q) || (c.phone||'').includes(q) || (c.plate||'').toLowerCase().includes(q) || (c.vin||'').toLowerCase().includes(q);
+      const mf = filt==='all' || c.category===filt;
+      return mq && mf;
+    });
+    if(!list.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px;font-size:13px">沒有符合的客戶</td></tr>'; return; }
+    list.forEach(c => {
+      const w = warranty(c);
+      const lastR = Store.db.repairs.filter(r=>r.customerId===c.id).sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+      const catBadge = c.category==='repair' ? '<span class="badge badge-orange">維修</span>' : '<span class="badge badge-blue">購車</span>';
+      const wBadge = c.category==='purchase' ? (w.ok ? `<span class="badge badge-green">保固 ${w.days}天</span>` : '<span class="badge badge-gray">已過期</span>') : '—';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><div style="font-weight:600;font-size:13.5px">${c.name}</div><div style="font-size:11px;color:var(--muted);margin-top:1px">${catBadge}</div></td>
+        <td><div style="font-size:13px">${c.model||'—'}</div><div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted)">${c.plate||'未填車牌'}</div></td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted)">${c.phone||'—'}</td>
+        <td>${wBadge}</td>
+        <td style="font-size:12px;color:var(--muted)">${lastR ? fmtDate(lastR.date) : '無紀錄'}</td>
+        <td style="text-align:right">
+          <button class="btn btn-ghost btn-sm" style="margin-right:4px" onclick="App.openRepairModal('${c.id}')"><i data-lucide="wrench" width="13" height="13"></i> 新增工單</button>
+          <button class="btn btn-ghost btn-icon btn-sm" style="margin-right:4px" onclick="App.openCustomerModal('${c.id}')"><i data-lucide="pencil" width="13" height="13"></i></button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="App.confirmDelete('customer','${c.id}','${c.name}')"><i data-lucide="trash-2" width="13" height="13"></i></button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    lucide.createIcons();
+  },
+
+  openCustomerModal(id) {
+    const fields = ['name','phone','address','notes','category','model','plate','vin','specs','purchase-date','price','warranty'];
+    fields.forEach(f => {
+      const el = document.getElementById('cf-'+f);
+      if(el) el.value = '';
+    });
+    document.getElementById('cf-warranty').value = 365;
+    document.getElementById('cf-id').value = '';
+    document.getElementById('cf-purchase-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('cust-modal-title').textContent = '新增客戶';
+
+    if(id) {
+      const c = Store.db.customers.find(x=>x.id===id);
+      if(!c) return;
+      document.getElementById('cf-id').value = c.id;
+      document.getElementById('cf-name').value = c.name||'';
+      document.getElementById('cf-phone').value = c.phone||'';
+      document.getElementById('cf-address').value = c.address||'';
+      document.getElementById('cf-notes').value = c.notes||'';
+      document.getElementById('cf-category').value = c.category||'purchase';
+      document.getElementById('cf-model').value = c.model||'';
+      document.getElementById('cf-plate').value = c.plate||'';
+      document.getElementById('cf-vin').value = c.vin||'';
+      document.getElementById('cf-specs').value = c.specs||'';
+      document.getElementById('cf-price').value = c.price||'';
+      document.getElementById('cf-warranty').value = c.warrantyDays||365;
+      if(c.purchaseDate) document.getElementById('cf-purchase-date').value = c.purchaseDate;
+      document.getElementById('cust-modal-title').textContent = '編輯客戶資料';
+    }
+    this.openModal('modal-customer');
+  },
+
+  saveCustomer() {
+    const n = document.getElementById('cf-name').value.trim();
+    const p = document.getElementById('cf-phone').value.trim();
+    if(!n||!p) { alert('姓名和電話為必填'); return; }
+    const id = document.getElementById('cf-id').value || gid();
+    const data = {
+      id, name:n, phone:p,
+      address: document.getElementById('cf-address').value,
+      notes:   document.getElementById('cf-notes').value,
+      category:document.getElementById('cf-category').value,
+      model:   document.getElementById('cf-model').value,
+      plate:   document.getElementById('cf-plate').value,
+      vin:     document.getElementById('cf-vin').value,
+      specs:   document.getElementById('cf-specs').value,
+      price:   document.getElementById('cf-price').value,
+      warrantyDays: document.getElementById('cf-warranty').value,
+      purchaseDate: document.getElementById('cf-purchase-date').value
+    };
+    const idx = Store.db.customers.findIndex(x=>x.id===id);
+    if(idx>=0) Store.db.customers[idx]=data; else Store.db.customers.push(data);
+    Store.save(); Store.push('Customers', data);
+    this.closeModal('modal-customer');
+    this.renderCustomers(); this.updateKPIs();
+  },
+
+  // ---- Repairs ----
+  setRepairFilter(btn, f) {
+    _repairFilter = f;
+    document.querySelectorAll('.repair-filter').forEach(b => b.classList.remove('active-filter','btn-primary','btn-ghost'));
+    document.querySelectorAll('.repair-filter').forEach(b => b.classList.add('btn-ghost'));
+    btn.classList.remove('btn-ghost'); btn.classList.add('active-filter','btn-primary');
+    this.renderRepairs();
+  },
+
+  renderRepairs() {
+    const container = document.getElementById('repair-list');
+    container.innerHTML = '';
+    const q = (document.getElementById('repair-search').value||'').toLowerCase();
+    let list = [...Store.db.repairs].sort((a,b)=>new Date(b.date)-new Date(a.date));
+    if(_repairFilter !== 'all') list = list.filter(r=>r.status===_repairFilter);
+    if(q) list = list.filter(r => {
+      const c = Store.db.customers.find(x=>x.id===r.customerId)||{};
+      return (c.name||'').toLowerCase().includes(q) || (r.description||'').toLowerCase().includes(q);
+    });
+    if(!list.length) {
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted);font-size:13px">沒有符合的工單</div>';
+      return;
+    }
+    list.forEach(r => {
+      const c = Store.db.customers.find(x=>x.id===r.customerId)||{name:'未知客戶',model:'—'};
+      const smap = {pending:['badge-yellow','待修中'],fixing:['badge-blue','維修中'],completed:['badge-green','已完工']};
+      const [scls,stxt] = smap[r.status]||['badge-gray','—'];
+      const tmap = {repair:'故障維修',regular:'定期保養',battery:'更換電池'};
+      const tcls = r.type==='repair' ? 'badge-orange' : r.type==='battery' ? 'badge-green' : 'badge-blue';
+      const card = document.createElement('div');
+      card.className = `repair-card status-${r.status}`;
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div style="min-width:0;flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+              <span style="font-weight:700;font-size:15px">${c.name}</span>
+              <span style="font-size:12px;color:var(--muted)">${c.model||'—'}</span>
+              ${c.plate?`<span style="font-family:'JetBrains Mono',monospace;font-size:11px;background:#f1f5f9;padding:1px 6px;border-radius:4px">${c.plate}</span>`:''}
+              <span class="badge ${tcls}" style="font-size:10px">${tmap[r.type]||'—'}</span>
+              <span class="badge ${scls}" style="font-size:10px">${stxt}</span>
+            </div>
+            <p style="font-size:13.5px;color:var(--text);margin-bottom:6px">${r.description||'—'}</p>
+            <div style="display:flex;gap:14px;font-size:11px;color:var(--muted)">
+              <span style="display:flex;align-items:center;gap:3px"><i data-lucide="calendar" width="11" height="11"></i> ${fmtDate(r.date)}</span>
+              ${r.mileage?`<span style="display:flex;align-items:center;gap:3px"><i data-lucide="gauge" width="11" height="11"></i> ${parseInt(r.mileage).toLocaleString()} km</span>`:''}
+              ${r.note?`<span style="display:flex;align-items:center;gap:3px"><i data-lucide="message-square" width="11" height="11"></i> ${r.note}</span>`:''}
+            </div>
+            ${r.partsCost||r.laborCost ? `<div style="margin-top:6px;font-size:11px;color:var(--muted)">零件 ${fmt$(r.partsCost)} + 工資 ${fmt$(r.laborCost)}</div>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:22px;font-weight:900;font-family:'JetBrains Mono',monospace;color:var(--accent)">${fmt$(r.totalCost)}</div>
+            <div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end">
+              ${r.status!=='completed' ? `<button class="btn btn-success btn-sm" onclick="App.completeRepair('${r.id}')"><i data-lucide="check" width="12" height="12"></i> 完工</button>` : ''}
+              <button class="btn btn-ghost btn-icon btn-sm" onclick="App.openRepairModal(null,'${r.id}')"><i data-lucide="pencil" width="13" height="13"></i></button>
+              <button class="btn btn-danger btn-icon btn-sm" onclick="App.confirmDelete('repair','${r.id}','維修工單')"><i data-lucide="trash-2" width="13" height="13"></i></button>
+            </div>
+          </div>
+        </div>`;
+      container.appendChild(card);
+    });
+    lucide.createIcons();
+  },
+
+  openRepairModal(customerId, repairId) {
+    // Reset
+    document.getElementById('rf-id').value = '';
+    document.getElementById('rf-customer').value = '';
+    document.getElementById('rf-status').value = 'pending';
+    document.getElementById('rf-mileage').value = '';
+    document.getElementById('rf-desc').value = '';
+    document.getElementById('rf-total-simple').value = '';
+    document.getElementById('rf-parts').value = 0;
+    document.getElementById('rf-labor').value = 0;
+    document.getElementById('rf-total-detail').textContent = '$0';
+    document.getElementById('rf-note').value = '';
+    document.getElementById('repair-modal-title').textContent = '新增維修工單';
+    this.setRepairType('repair');
+    this.setCostMode('simple');
+
+    // Populate customer dropdown
+    const sel = document.getElementById('rf-customer');
+    sel.innerHTML = '<option value="">— 請選擇客戶 —</option>';
+    Store.db.customers.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = `${c.name} (${c.model||'—'} ${c.plate||''})`;
+      sel.appendChild(opt);
+    });
+
+    if(customerId && !repairId) sel.value = customerId;
+
+    if(repairId) {
+      const r = Store.db.repairs.find(x=>x.id===repairId);
+      if(!r) return;
+      document.getElementById('rf-id').value = r.id;
+      sel.value = r.customerId||'';
+      document.getElementById('rf-status').value = r.status||'pending';
+      document.getElementById('rf-mileage').value = r.mileage||'';
+      document.getElementById('rf-desc').value = r.description||'';
+      document.getElementById('rf-note').value = r.note||'';
+      this.setRepairType(r.type||'repair');
+      if(r.partsCost || r.laborCost) {
+        this.setCostMode('detail');
+        document.getElementById('rf-parts').value = r.partsCost||0;
+        document.getElementById('rf-labor').value = r.laborCost||0;
+        this.calcTotal();
+      } else {
+        this.setCostMode('simple');
+        document.getElementById('rf-total-simple').value = r.totalCost||'';
+      }
+      document.getElementById('repair-modal-title').textContent = '編輯維修工單';
+    }
+    this.openModal('modal-repair');
+  },
+
+  setRepairType(t) {
+    document.getElementById('rf-type').value = t;
+    ['repair','regular','battery'].forEach(x => {
+      const btn = document.getElementById('rtype-'+x);
+      btn.className = 'type-pill' + (x===t ? ' active-'+x : '');
+    });
+  },
+
+  setCostMode(m) {
+    document.getElementById('rf-cost-mode').value = m;
+    document.getElementById('cost-simple').style.display = m==='simple' ? '' : 'none';
+    document.getElementById('cost-detail').style.display = m==='detail' ? '' : 'none';
+    document.getElementById('mode-simple').classList.toggle('active', m==='simple');
+    document.getElementById('mode-detail').classList.toggle('active', m==='detail');
+  },
+
+  calcTotal() {
+    const p = parseInt(document.getElementById('rf-parts').value)||0;
+    const l = parseInt(document.getElementById('rf-labor').value)||0;
+    document.getElementById('rf-total-detail').textContent = '$' + (p+l).toLocaleString();
+  },
+
+  syncCostFields() {},
+
+  saveRepair() {
+    const desc = document.getElementById('rf-desc').value.trim();
+    const custId = document.getElementById('rf-customer').value;
+    if(!desc) { alert('請填寫維修項目描述'); return; }
+    if(!custId) { alert('請選擇客戶'); return; }
+    const mode = document.getElementById('rf-cost-mode').value;
+    let total=0, parts=0, labor=0;
+    if(mode==='detail') {
+      parts = parseInt(document.getElementById('rf-parts').value)||0;
+      labor = parseInt(document.getElementById('rf-labor').value)||0;
+      total = parts + labor;
+    } else {
+      total = parseInt(document.getElementById('rf-total-simple').value)||0;
+    }
+    const id = document.getElementById('rf-id').value || gid();
+    const existing = Store.db.repairs.find(x=>x.id===id);
+    const data = {
+      id,
+      customerId: custId,
+      date: existing?.date || new Date().toISOString(),
+      type: document.getElementById('rf-type').value,
+      status: document.getElementById('rf-status').value,
+      mileage: document.getElementById('rf-mileage').value,
+      description: desc,
+      note: document.getElementById('rf-note').value,
+      partsCost: parts, laborCost: labor, totalCost: total
+    };
+    const idx = Store.db.repairs.findIndex(x=>x.id===id);
+    if(idx>=0) Store.db.repairs[idx]=data; else Store.db.repairs.push(data);
+    Store.save(); Store.push('Repairs', data);
+    this.closeModal('modal-repair');
+    this.renderRepairs(); this.updateKPIs();
+  },
+
+  completeRepair(id) {
+    const r = Store.db.repairs.find(x=>x.id===id);
+    if(!r) return;
+    r.status = 'completed';
+    Store.save(); Store.push('Repairs', r);
+    this.renderRepairs(); this.updateKPIs();
+  },
+
+  // ---- Inventory ----
+  openInventoryModal(id) {
+    document.getElementById('if-id').value = '';
+    document.getElementById('if-name').value = '';
+    document.getElementById('if-cat').value = 'tire';
+    document.getElementById('if-stock').value = 0;
+    document.getElementById('if-price').value = 0;
+    document.getElementById('if-min').value = 2;
+    document.getElementById('inv-modal-title').textContent = '新增庫存零件';
+    if(id) {
+      const item = Store.db.inventory.find(x=>x.id===id);
+      if(!item) return;
+      document.getElementById('if-id').value = item.id;
+      document.getElementById('if-name').value = item.name||'';
+      document.getElementById('if-cat').value = item.category||'other';
+      document.getElementById('if-stock').value = item.stock||0;
+      document.getElementById('if-price').value = item.price||0;
+      document.getElementById('if-min').value = item.minStock||2;
+      document.getElementById('inv-modal-title').textContent = '編輯零件';
+    }
+    this.openModal('modal-inventory');
+  },
+
+  renderInventory() {
+    const grid = document.getElementById('inv-grid');
+    grid.innerHTML = '';
+    const filt = document.getElementById('inv-filter').value;
+    const list = filt==='all' ? Store.db.inventory : Store.db.inventory.filter(i=>i.category===filt);
+    if(!list.length) { grid.innerHTML='<div style="color:var(--muted);font-size:13px;padding:24px">目前沒有零件紀錄</div>'; return; }
+    const catLabel = {tire:'輪胎',battery:'電池/電系',oil:'油品/耗材',other:'其他'};
+    list.forEach(item => {
+      const low = item.stock <= (parseInt(item.minStock)||2);
+      const card = document.createElement('div');
+      card.className = 'inv-card';
+      if(low) card.style.borderColor = '#fca5a5';
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+          <span class="badge badge-gray" style="font-size:10px">${catLabel[item.category]||'其他'}</span>
+          <span style="font-weight:700;font-family:'JetBrains Mono',monospace;font-size:14px">$${parseInt(item.price||0).toLocaleString()}</span>
+        </div>
+        <h4 style="font-weight:700;font-size:14px;margin-bottom:10px">${item.name}</h4>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px">庫存</div>
+            <div style="font-size:26px;font-weight:900;font-family:'JetBrains Mono',monospace;${low?'color:var(--danger)':''}">${item.stock}</div>
+            ${low?'<div style="font-size:10px;color:var(--danger);font-weight:700">⚠ 需補貨</div>':''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-ghost btn-sm" onclick="App.adjStock('${item.id}',-1)" style="padding:4px 10px;font-size:16px;font-weight:700">−</button>
+              <button class="btn btn-ghost btn-sm" onclick="App.adjStock('${item.id}',1)" style="padding:4px 10px;font-size:16px;font-weight:700">+</button>
+            </div>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-ghost btn-icon btn-sm" onclick="App.openInventoryModal('${item.id}')"><i data-lucide="pencil" width="12" height="12"></i></button>
+              <button class="btn btn-danger btn-icon btn-sm" onclick="App.confirmDelete('inventory','${item.id}','${item.name}')"><i data-lucide="trash-2" width="12" height="12"></i></button>
+            </div>
+          </div>
+        </div>`;
+      grid.appendChild(card);
+    });
+    lucide.createIcons();
+  },
+
+  saveInventory() {
+    const n = document.getElementById('if-name').value.trim();
+    if(!n) { alert('請填寫零件名稱'); return; }
+    const id = document.getElementById('if-id').value || gid();
+    const data = {
+      id, name:n,
+      category: document.getElementById('if-cat').value,
+      stock: parseInt(document.getElementById('if-stock').value)||0,
+      price: parseInt(document.getElementById('if-price').value)||0,
+      minStock: parseInt(document.getElementById('if-min').value)||2
+    };
+    const idx = Store.db.inventory.findIndex(x=>x.id===id);
+    if(idx>=0) Store.db.inventory[idx]=data; else Store.db.inventory.push(data);
+    Store.save(); Store.push('Inventory', data);
+    this.closeModal('modal-inventory');
+    this.renderInventory(); this.updateKPIs();
+  },
+
+  adjStock(id, d) {
+    const item = Store.db.inventory.find(x=>x.id===id);
+    if(!item) return;
+    item.stock = Math.max(0, (item.stock||0)+d);
+    Store.save(); Store.push('Inventory', item);
+    this.renderInventory(); this.updateKPIs();
+  },
+
+  // ---- Delete ----
+  confirmDelete(table, id, label) {
+    document.getElementById('confirm-title').textContent = `刪除${table==='customer'?'客戶':table==='repair'?'工單':'零件'}`;
+    document.getElementById('confirm-msg').textContent = `確定要刪除「${label}」嗎？此操作無法復原。`;
+    document.getElementById('confirm-ok-btn').onclick = () => {
+      if(table==='customer') { Store.db.customers = Store.db.customers.filter(x=>x.id!==id); Store.del('Customers',id); }
+      if(table==='repair')   { Store.db.repairs   = Store.db.repairs.filter(x=>x.id!==id);   Store.del('Repairs',id); }
+      if(table==='inventory'){ Store.db.inventory = Store.db.inventory.filter(x=>x.id!==id); Store.del('Inventory',id); }
+      Store.save();
+      this.closeModal('modal-confirm');
+      this.nav(this.currentView); this.updateKPIs();
+    };
+    this.openModal('modal-confirm');
+  },
+
+  // ---- Settings ----
+  saveApiUrl() {
+    const u = document.getElementById('setting-url').value.trim();
+    API.url = u; localStorage.setItem('diter_api_url', u);
+    API.updateStatus(!!u);
+    alert(u ? '連線設定已儲存' : 'URL 已清除，切換為本地模式');
+  },
+  async initSheets() {
+    loading(true,'初始化工作表…');
+    const res = await API.call('setup');
+    loading(false);
+    alert(res?.status==='success' ? '工作表初始化成功！' : '初始化失敗：' + (res?.message||'未知錯誤'));
+  },
+  exportCSV() {
+    const rows = ['類別,姓名,電話,車型,車牌,購車日期,保固天數'];
+    Store.db.customers.forEach(c => rows.push([c.category==='repair'?'維修':'購車',c.name,c.phone,c.model,c.plate,c.purchaseDate,c.warrantyDays].join(',')));
+    const a = document.createElement('a');
+    a.href = encodeURI('data:text/csv;charset=utf-8,\uFEFF' + rows.join('\n'));
+    a.download = 'diter_customers.csv'; a.click();
+  },
+  clearData() {
+    if(confirm('警告：這將清除所有本地資料且無法復原，確定嗎？')) {
+      localStorage.removeItem('diter_db_v3'); location.reload();
+    }
+  },
+
+  // ---- Modal helpers ----
+  openModal(id) {
+    const el = document.getElementById(id);
+    el.classList.add('open');
+    el.addEventListener('click', e => { if(e.target===el) App.closeModal(id); }, {once:true});
+    lucide.createIcons();
+  },
+  closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+};
+
+// CSS for active filter button
+document.head.insertAdjacentHTML('beforeend','<style>.repair-filter.active-filter{background:var(--accent)!important;color:#fff!important;border-color:var(--accent-dark)!important}</style>');
+
+window.addEventListener('load', () => App.init());
+</script>
+</body>
+</html>
