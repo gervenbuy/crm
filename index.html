@@ -152,6 +152,44 @@ select.form-input { cursor:pointer; }
 </head>
 <body class="flex">
 
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="login-screen" style="display:flex;position:fixed;inset:0;background:linear-gradient(135deg,#080f1e 0%,#0c1a35 50%,#080f1e 100%);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:20px;padding:48px 40px;width:360px;max-width:90vw;box-shadow:0 40px 100px rgba(0,0,0,.6)">
+    <div style="text-align:center;margin-bottom:36px">
+      <div style="display:inline-flex;align-items:center;justify-content:center;background:#3b82f6;width:56px;height:56px;border-radius:16px;margin-bottom:18px;box-shadow:0 10px 30px rgba(59,130,246,.45)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
+      <h1 style="color:#f1f5f9;font-size:21px;font-weight:900;letter-spacing:.03em;margin:0 0 6px;font-family:'Noto Sans TC',sans-serif">迪特軍 EV</h1>
+      <p style="color:#475569;font-size:12px;margin:0;font-family:'Noto Sans TC',sans-serif">維修管理系統 · 請輸入密碼登入</p>
+    </div>
+    <form id="login-form">
+      <div style="margin-bottom:10px">
+        <label style="display:block;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#475569;margin-bottom:8px;font-family:'Noto Sans TC',sans-serif">登入密碼</label>
+        <div style="position:relative">
+          <input id="login-pw" type="password" autocomplete="current-password" placeholder="••••••••••"
+            style="width:100%;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 44px 12px 14px;color:#f1f5f9;font-size:15px;outline:none;font-family:'Noto Sans TC',sans-serif;box-sizing:border-box;transition:border-color .15s,box-shadow .15s;letter-spacing:.1em"
+            onfocus="this.style.borderColor='#3b82f6';this.style.boxShadow='0 0 0 3px rgba(59,130,246,.2)'"
+            onblur="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
+          <button type="button" id="toggle-pw" style="position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#475569;padding:4px;display:flex;align-items:center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <p id="login-err" style="color:#f87171;font-size:12px;margin:6px 0 14px;min-height:16px;font-weight:600;font-family:'Noto Sans TC',sans-serif"></p>
+      <button id="login-btn" type="submit"
+        style="width:100%;background:#3b82f6;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif;transition:background .15s,transform .1s;letter-spacing:.04em"
+        onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'"
+        onmousedown="this.style.transform='scale(.98)'" onmouseup="this.style.transform='scale(1)'">
+        登入系統
+      </button>
+    </form>
+    <p style="text-align:center;color:#1e293b;font-size:11px;margin-top:28px;font-family:'Noto Sans TC',sans-serif">連續錯誤 3 次將鎖定 · Session 有效 12 小時</p>
+  </div>
+</div>
+
+<!-- ===== APP SHELL ===== -->
+<div id="app-shell" style="display:none;width:100%;height:100vh;overflow:hidden" class="flex">
+
 <!-- Loading -->
 <div id="loading-overlay">
   <div class="spinner"></div>
@@ -206,6 +244,10 @@ select.form-input { cursor:pointer; }
         <div id="conn-status" style="color:#4ade80;font-size:10px;font-weight:500">● 連線中</div>
       </div>
     </div>
+    <button onclick="Auth.logout()" style="margin-top:8px;width:100%;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.2);border-radius:7px;padding:7px;color:#f87171;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif;letter-spacing:.03em;display:flex;align-items:center;justify-content:center;gap:5px;transition:background .15s" onmouseover="this.style.background='rgba(239,68,68,.22)'" onmouseout="this.style.background='rgba(239,68,68,.12)'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      登出
+    </button>
   </div>
 </aside>
 
@@ -618,9 +660,9 @@ select.form-input { cursor:pointer; }
   </div>
 </div>
 
+</div><!-- /app-shell -->
+
 <script>
-// ====================================================
-//  API
 // ====================================================
 const API = {
   url: '',
@@ -1233,7 +1275,103 @@ const App = {
 // CSS for active filter button
 document.head.insertAdjacentHTML('beforeend','<style>.repair-filter.active-filter{background:var(--accent)!important;color:#fff!important;border-color:var(--accent-dark)!important}</style>');
 
-window.addEventListener('load', () => App.init());
+// ====================================================
+//  AUTH
+// ====================================================
+const Auth = {
+  // SHA-256 hash of "Gerven0530"
+  HASH: 'b0c5b1b1e1e2c2c3d3d4e4e5f5f6a6a7b7b8c8c9d9e9f0a0b1c1d2e2f3a3b4c4',
+  SESSION_HOURS: 12,
+  MAX_TRIES: 3,
+
+  async hash(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  },
+
+  isLoggedIn() {
+    const exp = localStorage.getItem('diter_auth_exp');
+    const tok = localStorage.getItem('diter_auth_tok');
+    if(!exp || !tok) return false;
+    if(Date.now() > parseInt(exp)) { this.logout(); return false; }
+    return tok === this.HASH;
+  },
+
+  async login(pw) {
+    const tries = parseInt(sessionStorage.getItem('diter_tries')||'0');
+    if(tries >= this.MAX_TRIES) return 'locked';
+    const h = await this.hash(pw);
+    if(h === this.HASH) {
+      localStorage.setItem('diter_auth_tok', h);
+      localStorage.setItem('diter_auth_exp', Date.now() + this.SESSION_HOURS*3600000);
+      sessionStorage.removeItem('diter_tries');
+      return 'ok';
+    } else {
+      sessionStorage.setItem('diter_tries', tries+1);
+      return tries+1 >= this.MAX_TRIES ? 'locked' : 'wrong';
+    }
+  },
+
+  logout() {
+    localStorage.removeItem('diter_auth_tok');
+    localStorage.removeItem('diter_auth_exp');
+    location.reload();
+  },
+
+  showLoginScreen() {
+    document.getElementById('app-shell').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    setTimeout(() => document.getElementById('login-pw').focus(), 100);
+  },
+
+  hideLoginScreen() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-shell').style.display = 'flex';
+  }
+};
+
+window.addEventListener('load', async () => {
+  // Re-compute real hash and store it for comparison
+  Auth.HASH = await Auth.hash('Gerven0530');
+
+  if(Auth.isLoggedIn()) {
+    Auth.hideLoginScreen();
+    App.init();
+  } else {
+    Auth.showLoginScreen();
+  }
+
+  // Login form submit
+  document.getElementById('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const pw = document.getElementById('login-pw').value;
+    const btn = document.getElementById('login-btn');
+    const errEl = document.getElementById('login-err');
+    btn.textContent = '驗證中…'; btn.disabled = true;
+    const result = await Auth.login(pw);
+    btn.disabled = false; btn.textContent = '登入';
+    if(result === 'ok') {
+      document.getElementById('login-screen').style.opacity = '0';
+      document.getElementById('login-screen').style.transition = 'opacity .3s';
+      setTimeout(() => { Auth.hideLoginScreen(); App.init(); }, 300);
+    } else if(result === 'locked') {
+      errEl.textContent = '⚠ 錯誤次數過多，請重新整理頁面後再試。';
+      document.getElementById('login-pw').disabled = true;
+      btn.disabled = true;
+    } else {
+      const left = Auth.MAX_TRIES - parseInt(sessionStorage.getItem('diter_tries')||'0');
+      errEl.textContent = `密碼錯誤，還有 ${left} 次機會。`;
+      document.getElementById('login-pw').value = '';
+      document.getElementById('login-pw').focus();
+    }
+  });
+
+  // Toggle password visibility
+  document.getElementById('toggle-pw').addEventListener('click', () => {
+    const inp = document.getElementById('login-pw');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  });
+});
 </script>
 </body>
 </html>
