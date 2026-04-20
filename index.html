@@ -24,7 +24,9 @@
   --warning: #f59e0b;
 }
 * { box-sizing: border-box; }
-body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; }
+body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); }
+body:not(.sign-mode) { overflow: hidden; height: 100vh; }
+body.sign-mode { overflow: auto; }
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
@@ -766,7 +768,7 @@ select.form-input { cursor:pointer; }
 </div>
 
 <!-- ===== CUSTOMER SIGN PAGE (shown when URL has #sign=...) ===== -->
-<div id="sign-page" style="display:none;position:fixed;inset:0;z-index:9998;background:#f0f4f8;overflow-y:auto;font-family:'Noto Sans TC',sans-serif">
+<div id="sign-page" style="display:none;min-height:100vh;background:#f0f4f8;font-family:'Noto Sans TC',sans-serif;overflow-y:auto">
   <div style="max-width:480px;margin:0 auto;padding:16px 12px 40px">
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:14px;padding:20px 22px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
@@ -1993,17 +1995,9 @@ const SignPage = {
     try {
       this.data = JSON.parse(decodeURIComponent(escape(atob(encoded))));
     } catch(e) {
-      document.getElementById('sign-page').innerHTML = '<div style="text-align:center;padding:60px 20px;font-family:sans-serif"><h2 style="color:#ef4444">連結無效或已過期</h2><p style="color:#64748b;margin-top:8px">請向店家重新索取簽名連結。</p></div>';
-      document.getElementById('sign-page').style.display = 'block';
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('app-shell').style.display = 'none';
+      document.getElementById('sign-page').innerHTML = '<div style="text-align:center;padding:80px 20px;font-family:sans-serif"><h2 style="color:#ef4444;margin-bottom:12px">連結無效或已過期</h2><p style="color:#64748b">請向迪特軍 EV 重新索取簽名連結。</p></div>';
       return;
     }
-
-    // Hide login & app
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app-shell').style.display = 'none';
-    document.getElementById('sign-page').style.display = 'block';
 
     const d = this.data;
     const setText = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v||'—'; };
@@ -2138,21 +2132,28 @@ const SignPage = {
 };
 
 // ====================================================
-//  HASH ROUTER — run before auth check
+//  HASH ROUTER — detect #sign= immediately, before anything else renders
 // ====================================================
 (function() {
   const hash = window.location.hash;
-  if(hash.startsWith('#sign=')) {
-    const encoded = hash.slice(6);
-    // Defer until DOM ready
-    if(document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => SignPage.init(encoded));
-    } else {
-      SignPage.init(encoded);
-    }
-    // Skip normal auth flow
-    window._isSignPage = true;
-  }
+  if(!hash.startsWith('#sign=')) return;
+
+  // Mark as sign page immediately
+  window._isSignPage = true;
+  window._signEncoded = hash.slice(6);
+
+  // Add class to body immediately (body tag already exists at this point
+  // since script is at bottom of body)
+  document.body.classList.add('sign-mode');
+
+  // Inject a <style> to hide login/app and show sign page before first paint
+  const style = document.createElement('style');
+  style.textContent = `
+    #login-screen { display: none !important; }
+    #app-shell     { display: none !important; }
+    #sign-page     { display: block !important; }
+  `;
+  document.head.appendChild(style);
 })();
 document.head.insertAdjacentHTML('beforeend','<style>.repair-filter.active-filter{background:var(--accent)!important;color:#fff!important;border-color:var(--accent-dark)!important}</style>');
 
@@ -2212,8 +2213,11 @@ const Auth = {
 };
 
 window.addEventListener('load', async () => {
-  // Skip auth entirely if this is a customer sign page
-  if(window._isSignPage) return;
+  // If this is a customer sign page, init SignPage and stop
+  if(window._isSignPage) {
+    SignPage.init(window._signEncoded);
+    return;
+  }
 
   // Re-compute real hash and store it for comparison
   Auth.HASH = await Auth.hash('Gerven0530');
