@@ -230,6 +230,15 @@ select.form-input { cursor:pointer; }
       <span class="nav-badge" id="badge-inventory" style="display:none;background:#ef4444">!</span>
     </button>
     <div style="border-top:1px solid rgba(255,255,255,.06);margin:8px 0"></div>
+    <button class="nav-btn" id="nav-warranty" onclick="App.nav('warranty')">
+      <i data-lucide="shield-check" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">保固書製作</span>
+    </button>
+    <button class="nav-btn" id="nav-sales" onclick="App.nav('sales')">
+      <i data-lucide="file-pen" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">銷售簽收單</span>
+    </button>
+    <div style="border-top:1px solid rgba(255,255,255,.06);margin:8px 0"></div>
     <button class="nav-btn" id="nav-settings" onclick="App.nav('settings')">
       <i data-lucide="settings" width="16" height="16" style="flex-shrink:0"></i>
       <span class="nav-label">系統設定</span>
@@ -402,6 +411,313 @@ select.form-input { cursor:pointer; }
         <div class="card">
           <h3 style="font-size:14px;font-weight:700;margin-bottom:6px">版本資訊</h3>
           <p style="font-size:12px;color:var(--muted)">迪特軍 EV 維修管理系統 v3.0 · 支援 Google Sheet 雲端同步</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- WARRANTY VIEW -->
+    <div id="view-warranty" class="view fade-up">
+      <div style="max-width:800px">
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px"><i data-lucide="shield-check" width="16" height="16" style="color:var(--accent)"></i> 選擇客戶產生保固書</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end">
+            <div>
+              <label class="form-label">選擇客戶</label>
+              <select class="form-input" id="wt-customer" onchange="App.fillWarranty()">
+                <option value="">— 選擇客戶 —</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">整車保固期（天）</label>
+              <input class="form-input" id="wt-days" type="number" value="365" oninput="App.fillWarranty()">
+            </div>
+            <button class="btn btn-primary" onclick="App.downloadWarrantyPNG()" style="height:38px">
+              <i data-lucide="image-down" width="15" height="15"></i> 下載 PNG
+            </button>
+          </div>
+        </div>
+
+        <!-- Preview card (this is what gets captured) -->
+        <div id="warranty-preview" style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;font-family:'Noto Sans TC',sans-serif">
+          <!-- Header -->
+          <div style="background:linear-gradient(135deg,#0c1a35,#1a3a6e);padding:32px 40px;position:relative;overflow:hidden">
+            <div style="position:absolute;right:-20px;top:-20px;width:160px;height:160px;border-radius:50%;background:rgba(59,130,246,.15)"></div>
+            <div style="position:absolute;right:60px;bottom:-40px;width:100px;height:100px;border-radius:50%;background:rgba(59,130,246,.1)"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;position:relative">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                  <div style="background:#3b82f6;padding:8px;border-radius:10px">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  </div>
+                  <div>
+                    <div style="color:#fff;font-size:22px;font-weight:900;letter-spacing:.04em">產品保固證書</div>
+                    <div style="color:#93c5fd;font-size:12px;font-weight:500">迪特軍 EV · Product Warranty Certificate</div>
+                  </div>
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div style="color:#93c5fd;font-size:11px">證書編號</div>
+                <div id="wt-cert-no" style="color:#fff;font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace">WR---------</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customer Info -->
+          <div style="padding:28px 40px;background:#f8faff;border-bottom:1px solid #e0e9ff">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">客戶姓名</div>
+                <div id="wt-name" style="font-size:17px;font-weight:700;color:#0f172a">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">車輛型號</div>
+                <div id="wt-model" style="font-size:17px;font-weight:700;color:#0f172a">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">聯絡電話</div>
+                <div id="wt-phone" style="font-size:15px;font-weight:600;color:#0f172a;font-family:'JetBrains Mono',monospace">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">車身序號 VIN</div>
+                <div id="wt-vin" style="font-size:13px;font-weight:600;color:#334155;font-family:'JetBrains Mono',monospace">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">購車日期</div>
+                <div id="wt-pdate" style="font-size:15px;font-weight:600;color:#0f172a">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">整車保固到期</div>
+                <div id="wt-expire" style="font-size:15px;font-weight:700;color:#1d4ed8">—</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Warranty badges -->
+          <div style="padding:20px 40px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #93c5fd;border-radius:10px;padding:14px 16px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">整車保固</div>
+              <div id="wt-main-badge" style="font-size:22px;font-weight:900;color:#1e40af">1 年</div>
+              <div style="font-size:10px;color:#3b82f6;margin-top:2px">非人為因素零件瑕疵</div>
+            </div>
+            <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #86efac;border-radius:10px;padding:14px 16px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">電池保固</div>
+              <div style="font-size:22px;font-weight:900;color:#166534">6 個月</div>
+              <div style="font-size:10px;color:#16a34a;margin-top:2px">原廠電芯瑕疵保固</div>
+            </div>
+            <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#faf5ff,#ede9fe);border:1.5px solid #c4b5fd;border-radius:10px;padding:14px 16px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">免費保養</div>
+              <div style="font-size:22px;font-weight:900;color:#6d28d9">首次</div>
+              <div style="font-size:10px;color:#7c3aed;margin-top:2px">購車後首次定期保養免費</div>
+            </div>
+          </div>
+
+          <!-- Warranty terms -->
+          <div style="padding:24px 40px;background:#fff">
+            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:14px;display:flex;align-items:center;gap:6px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              保固條款與除外責任說明
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;font-size:11.5px">
+              <!-- Covered -->
+              <div style="padding:14px 16px;border-right:1px solid #e2e8f0">
+                <div style="font-weight:700;color:#15803d;margin-bottom:8px;display:flex;align-items:center;gap:4px">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  保固範圍內
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px;color:#374151">
+                  <div style="display:flex;gap:5px"><span style="color:#16a34a;flex-shrink:0">✓</span> 出廠瑕疵導致的零件故障</div>
+                  <div style="display:flex;gap:5px"><span style="color:#16a34a;flex-shrink:0">✓</span> 電池電芯原廠瑕疵（6個月內）</div>
+                  <div style="display:flex;gap:5px"><span style="color:#16a34a;flex-shrink:0">✓</span> 控制器、馬達原廠異常</div>
+                  <div style="display:flex;gap:5px"><span style="color:#16a34a;flex-shrink:0">✓</span> 儀表板、燈具原廠線路故障</div>
+                  <div style="display:flex;gap:5px"><span style="color:#16a34a;flex-shrink:0">✓</span> 正常使用下之結構問題</div>
+                </div>
+              </div>
+              <!-- Not covered -->
+              <div style="padding:14px 16px">
+                <div style="font-weight:700;color:#dc2626;margin-bottom:8px;display:flex;align-items:center;gap:4px">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  除外責任（不在保固範圍）
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px;color:#374151">
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 碰撞、跌倒、人為損壞</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 泡水/涉水超過輪軸高度</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 電池深度放電（長期未充電）</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 使用非原廠充電器造成損壞</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 自行改裝、解限速、改電路</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 輪胎、煞車片等消耗品磨損</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 天災（颱風、淹水、地震）</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 外送/高強度商業用途使用</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Battery special note -->
+            <div style="margin-top:12px;background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:12px 16px;display:flex;gap:10px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <div style="font-size:11.5px;color:#92400e">
+                <strong>電池保固特別說明：</strong>電池保固期為購車日起 6 個月，僅涵蓋電芯原廠瑕疵。電池長期未使用導致深度放電（電壓低於保護閥值無法喚醒）屬使用不當，不在保固範圍內。建議每月至少充電一次，長期不使用時請保持 50% 以上電量。
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 40px;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:11px;color:#94a3b8">迪特軍 EV 專業電動車服務 · 保固服務專線請電洽門市</div>
+            <div id="wt-issue-date" style="font-size:11px;color:#94a3b8">簽發日期：—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SALES RECEIPT VIEW -->
+    <div id="view-sales" class="view fade-up">
+      <div style="display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start">
+        <!-- Left: Form -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card">
+            <h3 style="font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:6px"><i data-lucide="user" width="14" height="14" style="color:var(--accent)"></i> 帶入客戶資料</h3>
+            <select class="form-input" id="sr-customer" onchange="App.fillSales()" style="margin-bottom:0">
+              <option value="">— 選擇客戶自動帶入 —</option>
+            </select>
+          </div>
+          <div class="card">
+            <h3 style="font-size:13px;font-weight:700;margin-bottom:12px">銷售資訊</h3>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div><label class="form-label">客戶姓名</label><input class="form-input" id="sr-name" oninput="App.updateSales()"></div>
+              <div><label class="form-label">聯絡電話</label><input class="form-input" id="sr-phone" oninput="App.updateSales()"></div>
+              <div><label class="form-label">地址</label><input class="form-input" id="sr-address" oninput="App.updateSales()"></div>
+              <div><label class="form-label">車輛型號</label><input class="form-input" id="sr-model" oninput="App.updateSales()"></div>
+              <div><label class="form-label">規格 / 顏色</label><input class="form-input" id="sr-specs" oninput="App.updateSales()"></div>
+              <div><label class="form-label">車牌號碼</label><input class="form-input" id="sr-plate" oninput="App.updateSales()"></div>
+              <div><label class="form-label">車身序號 VIN</label><input class="form-input" id="sr-vin" oninput="App.updateSales()"></div>
+              <div><label class="form-label">銷售金額（元）</label><input class="form-input" id="sr-price" type="number" oninput="App.updateSales()"></div>
+              <div><label class="form-label">付款方式</label>
+                <select class="form-input" id="sr-payment" onchange="App.updateSales()">
+                  <option>現金付清</option><option>信用卡</option><option>分期付款</option><option>轉帳匯款</option><option>其他</option>
+                </select>
+              </div>
+              <div><label class="form-label">交車日期</label><input class="form-input" id="sr-date" type="date" oninput="App.updateSales()"></div>
+              <div><label class="form-label">備註</label><textarea class="form-input" id="sr-note" rows="2" oninput="App.updateSales()"></textarea></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3 style="font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+              <i data-lucide="pen-tool" width="14" height="14" style="color:var(--accent)"></i> 客戶簽名
+            </h3>
+            <div style="position:relative">
+              <canvas id="sig-canvas" width="296" height="130" style="border:2px dashed #cbd5e1;border-radius:8px;cursor:crosshair;display:block;width:100%;touch-action:none;background:#fafafa"></canvas>
+              <div id="sig-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;color:#cbd5e1;font-size:13px">在此區域簽名</div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:8px">
+              <button class="btn btn-ghost btn-sm" onclick="App.clearSig()"><i data-lucide="rotate-ccw" width="12" height="12"></i> 清除</button>
+              <span style="font-size:11px;color:var(--muted);line-height:1.4;margin-left:4px">可直接用滑鼠或手指在上方簽名，或傳送連結給客戶簽名後截圖貼入</span>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="App.downloadSalesPNG()" style="width:100%;justify-content:center;padding:12px">
+            <i data-lucide="image-down" width="16" height="16"></i> 下載簽收單 PNG
+          </button>
+        </div>
+
+        <!-- Right: Preview -->
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:4px">
+            <i data-lucide="eye" width="12" height="12"></i> 即時預覽
+          </div>
+          <div id="sales-preview" style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;font-family:'Noto Sans TC',sans-serif">
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:24px 32px;display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="color:#93c5fd;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Electric Vehicle Sales Receipt</div>
+                <div style="color:#fff;font-size:20px;font-weight:900;letter-spacing:.03em">電動車銷售簽收單</div>
+                <div style="color:#64748b;font-size:11px;margin-top:4px">迪特軍 EV 專業電動車服務</div>
+              </div>
+              <div style="text-align:right">
+                <div style="color:#475569;font-size:10px">單號</div>
+                <div id="sr-doc-no" style="color:#93c5fd;font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace">SR---------</div>
+                <div id="sr-date-display" style="color:#64748b;font-size:11px;margin-top:4px">—</div>
+              </div>
+            </div>
+
+            <!-- Body -->
+            <div style="padding:24px 32px">
+              <!-- Customer + Vehicle -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:16px;font-size:12.5px">
+                <div style="padding:16px;border-right:1px solid #e2e8f0">
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:10px">買方資料</div>
+                  <div style="display:flex;flex-direction:column;gap:7px">
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">姓名</span><span id="sr-p-name" style="font-weight:700;color:#0f172a">—</span></div>
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">電話</span><span id="sr-p-phone" style="font-family:'JetBrains Mono',monospace;color:#334155">—</span></div>
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">地址</span><span id="sr-p-address" style="color:#334155">—</span></div>
+                  </div>
+                </div>
+                <div style="padding:16px">
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:10px">車輛資料</div>
+                  <div style="display:flex;flex-direction:column;gap:7px">
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">型號</span><span id="sr-p-model" style="font-weight:700;color:#0f172a">—</span></div>
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">規格</span><span id="sr-p-specs" style="color:#334155">—</span></div>
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">車牌</span><span id="sr-p-plate" style="font-family:'JetBrains Mono',monospace;color:#334155">—</span></div>
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">VIN</span><span id="sr-p-vin" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#334155">—</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Price highlight -->
+              <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #93c5fd;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <div>
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:4px">銷售金額</div>
+                  <div id="sr-p-price" style="font-size:32px;font-weight:900;color:#1e40af;font-family:'JetBrains Mono',monospace">NT$ —</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-size:10px;color:#3b82f6;margin-bottom:4px">付款方式</div>
+                  <div id="sr-p-payment" style="font-size:14px;font-weight:700;color:#1d4ed8">—</div>
+                  <div style="font-size:10px;color:#3b82f6;margin-top:6px">交車日期</div>
+                  <div id="sr-p-date" style="font-size:13px;font-weight:600;color:#1d4ed8">—</div>
+                </div>
+              </div>
+
+              <!-- Checklist -->
+              <div style="border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:12px">
+                <div style="font-weight:700;color:#374151;margin-bottom:8px">交車確認項目</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;color:#4b5563">
+                  <div>☐ 車輛外觀檢查無損傷</div>
+                  <div>☐ 燈光、儀表功能正常</div>
+                  <div>☐ 煞車系統測試正常</div>
+                  <div>☐ 動力系統操作正常</div>
+                  <div>☐ 充電器及配件點收</div>
+                  <div>☐ 鑰匙及說明書點收</div>
+                  <div>☐ 保固條款說明完畢</div>
+                  <div>☐ 操作注意事項說明</div>
+                </div>
+                <div id="sr-p-note" style="margin-top:10px;padding-top:8px;border-top:1px dashed #e2e8f0;font-size:11.5px;color:#64748b;display:none"></div>
+              </div>
+
+              <!-- Signature area -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px">
+                  <div style="font-size:11px;color:#94a3b8;margin-bottom:24px">賣方（迪特軍 EV）簽章：</div>
+                  <div style="border-bottom:1px solid #334155;margin-bottom:4px;height:32px"></div>
+                  <div style="font-size:10px;color:#94a3b8;text-align:center">迪特軍 EV 門市</div>
+                </div>
+                <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px">
+                  <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">買方簽名：</div>
+                  <div style="height:60px;display:flex;align-items:center;justify-content:center">
+                    <img id="sr-sig-preview" src="" alt="" style="max-height:56px;max-width:100%;display:none">
+                    <span id="sr-sig-empty" style="font-size:11px;color:#e2e8f0">尚未簽名</span>
+                  </div>
+                  <div style="border-top:1px solid #334155;padding-top:4px">
+                    <div id="sr-p-name2" style="font-size:10px;color:#94a3b8;text-align:center">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:12px 32px;display:flex;justify-content:space-between;align-items:center">
+              <div style="font-size:10px;color:#94a3b8">本簽收單一式二份，買賣雙方各執一份</div>
+              <div style="font-size:10px;color:#94a3b8">迪特軍 EV · 電動車專業服務</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -784,12 +1100,14 @@ const App = {
     void document.getElementById('view-'+v).offsetWidth;
     document.getElementById('view-'+v).classList.add('fade-up');
     this.currentView = v;
-    const titles = {dashboard:'儀表板',customers:'客戶 & 車籍',repairs:'維修工單中心',inventory:'零件庫存',settings:'系統設定'};
+    const titles = {dashboard:'儀表板',customers:'客戶 & 車籍',repairs:'維修工單中心',inventory:'零件庫存',warranty:'保固書製作',sales:'銷售簽收單',settings:'系統設定'};
     document.getElementById('page-title').textContent = titles[v]||v;
     if(v==='dashboard') this.renderDashboard();
     if(v==='customers') this.renderCustomers();
     if(v==='repairs')   this.renderRepairs();
     if(v==='inventory') this.renderInventory();
+    if(v==='warranty')  this.initWarranty();
+    if(v==='sales')     this.initSales();
     lucide.createIcons();
   },
 
@@ -1232,6 +1550,155 @@ const App = {
       this.nav(this.currentView); this.updateKPIs();
     };
     this.openModal('modal-confirm');
+  },
+
+  // ---- Warranty ----
+  initWarranty() {
+    const sel = document.getElementById('wt-customer');
+    sel.innerHTML = '<option value="">— 選擇客戶 —</option>';
+    Store.db.customers.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id; o.textContent = `${c.name} (${c.model||'—'})`;
+      sel.appendChild(o);
+    });
+  },
+
+  fillWarranty() {
+    const id = document.getElementById('wt-customer').value;
+    const days = parseInt(document.getElementById('wt-days').value)||365;
+    if(!id) return;
+    const c = Store.db.customers.find(x=>x.id===id);
+    if(!c) return;
+    const certNo = 'WR-' + (c.id||'').substr(1,8).toUpperCase();
+    const pDate = c.purchaseDate ? new Date(c.purchaseDate) : new Date();
+    const expDate = new Date(pDate); expDate.setDate(pDate.getDate()+days);
+    const mainBadge = days >= 365 ? `${Math.round(days/365)} 年` : `${days} 天`;
+    document.getElementById('wt-cert-no').textContent = certNo;
+    document.getElementById('wt-name').textContent = c.name||'—';
+    document.getElementById('wt-model').textContent = c.model||'—';
+    document.getElementById('wt-phone').textContent = c.phone||'—';
+    document.getElementById('wt-vin').textContent = c.vin||'—';
+    document.getElementById('wt-pdate').textContent = c.purchaseDate ? new Date(c.purchaseDate).toLocaleDateString('zh-TW') : '—';
+    document.getElementById('wt-expire').textContent = expDate.toLocaleDateString('zh-TW');
+    document.getElementById('wt-main-badge').textContent = mainBadge;
+    document.getElementById('wt-issue-date').textContent = '簽發日期：' + new Date().toLocaleDateString('zh-TW');
+  },
+
+  async downloadWarrantyPNG() {
+    const id = document.getElementById('wt-customer').value;
+    if(!id) { alert('請先選擇客戶'); return; }
+    const c = Store.db.customers.find(x=>x.id===id);
+    await this._downloadNodeAsPNG('warranty-preview', `保固書_${c?.name||'客戶'}_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.png`);
+  },
+
+  // ---- Sales ----
+  _sigDrawing: false, _sigHasSig: false,
+
+  initSales() {
+    const sel = document.getElementById('sr-customer');
+    sel.innerHTML = '<option value="">— 選擇客戶自動帶入 —</option>';
+    Store.db.customers.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id; o.textContent = `${c.name} (${c.model||'—'})`;
+      sel.appendChild(o);
+    });
+    if(!document.getElementById('sr-date').value)
+      document.getElementById('sr-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('sr-doc-no').textContent = 'SR-' + Date.now().toString(36).toUpperCase().substr(-8);
+    this._initSignature();
+    this.updateSales();
+  },
+
+  fillSales() {
+    const id = document.getElementById('sr-customer').value;
+    if(!id) return;
+    const c = Store.db.customers.find(x=>x.id===id);
+    if(!c) return;
+    const set = (i,v) => { const el=document.getElementById(i); if(el) el.value=v||''; };
+    set('sr-name',c.name); set('sr-phone',c.phone); set('sr-address',c.address);
+    set('sr-model',c.model); set('sr-specs',c.specs); set('sr-plate',c.plate);
+    set('sr-vin',c.vin); set('sr-price',c.price);
+    if(c.purchaseDate) document.getElementById('sr-date').value = c.purchaseDate;
+    this.updateSales();
+  },
+
+  updateSales() {
+    const get = id => document.getElementById(id)?.value||'';
+    const name=get('sr-name'), phone=get('sr-phone'), address=get('sr-address');
+    const model=get('sr-model'), specs=get('sr-specs'), plate=get('sr-plate'), vin=get('sr-vin');
+    const price=parseInt(get('sr-price'))||0;
+    const payment=get('sr-payment'), date=get('sr-date'), note=get('sr-note');
+    const setText=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v||'—'; };
+    setText('sr-p-name',name); setText('sr-p-name2',name);
+    setText('sr-p-phone',phone); setText('sr-p-address',address);
+    setText('sr-p-model',model); setText('sr-p-specs',specs);
+    setText('sr-p-plate',plate); setText('sr-p-vin',vin);
+    setText('sr-p-payment',payment);
+    document.getElementById('sr-p-price').textContent = price>0 ? 'NT$ '+price.toLocaleString() : 'NT$ —';
+    document.getElementById('sr-date-display').textContent = date ? new Date(date).toLocaleDateString('zh-TW') : '—';
+    setText('sr-p-date', date ? new Date(date).toLocaleDateString('zh-TW') : '');
+    const noteEl=document.getElementById('sr-p-note');
+    if(note){noteEl.textContent='備註：'+note;noteEl.style.display='';}else{noteEl.style.display='none';}
+  },
+
+  _initSignature() {
+    const canvas = document.getElementById('sig-canvas');
+    if(!canvas || canvas._sigInited) return;
+    canvas._sigInited = true;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle='#0f172a'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round';
+    const getPos = e => {
+      const r=canvas.getBoundingClientRect();
+      const sx=canvas.width/r.width, sy=canvas.height/r.height;
+      if(e.touches) return{x:(e.touches[0].clientX-r.left)*sx,y:(e.touches[0].clientY-r.top)*sy};
+      return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};
+    };
+    canvas.addEventListener('mousedown',e=>{e.preventDefault();this._sigDrawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);document.getElementById('sig-placeholder').style.display='none';});
+    canvas.addEventListener('mousemove',e=>{if(!this._sigDrawing)return;e.preventDefault();const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();this._sigHasSig=true;this._updateSigPreview();});
+    canvas.addEventListener('mouseup',()=>this._sigDrawing=false);
+    canvas.addEventListener('mouseleave',()=>this._sigDrawing=false);
+    canvas.addEventListener('touchstart',e=>{e.preventDefault();this._sigDrawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);document.getElementById('sig-placeholder').style.display='none';},{passive:false});
+    canvas.addEventListener('touchmove',e=>{if(!this._sigDrawing)return;e.preventDefault();const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();this._sigHasSig=true;this._updateSigPreview();},{passive:false});
+    canvas.addEventListener('touchend',()=>this._sigDrawing=false);
+  },
+
+  _updateSigPreview() {
+    const canvas=document.getElementById('sig-canvas');
+    const img=document.getElementById('sr-sig-preview');
+    if(this._sigHasSig){img.src=canvas.toDataURL('image/png');img.style.display='';document.getElementById('sr-sig-empty').style.display='none';}
+  },
+
+  clearSig() {
+    const canvas=document.getElementById('sig-canvas');
+    canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+    this._sigHasSig=false; canvas._sigInited=false;
+    document.getElementById('sig-placeholder').style.display='';
+    document.getElementById('sr-sig-preview').style.display='none';
+    document.getElementById('sr-sig-empty').style.display='';
+  },
+
+  async downloadSalesPNG() {
+    const name=document.getElementById('sr-name').value||'客戶';
+    await this._downloadNodeAsPNG('sales-preview',`銷售簽收單_${name}_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.png`);
+  },
+
+  async _downloadNodeAsPNG(nodeId, filename) {
+    const node=document.getElementById(nodeId);
+    if(!node) return;
+    if(typeof html2canvas==='undefined'){
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s.onload=res; s.onerror=rej; document.head.appendChild(s);
+      });
+    }
+    loading(true,'產生圖片中…');
+    try{
+      const canvas=await html2canvas(node,{scale:2.5,useCORS:true,backgroundColor:'#ffffff',logging:false,width:node.scrollWidth,height:node.scrollHeight});
+      const link=document.createElement('a');
+      link.href=canvas.toDataURL('image/png'); link.download=filename; link.click();
+    }catch(e){alert('圖片產生失敗，請確認瀏覽器允許截圖。');console.error(e);}
+    finally{loading(false);}
   },
 
   // ---- Settings ----
