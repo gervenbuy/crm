@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>迪特軍 EV · 電動車銷售簽收單</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans TC', sans-serif; background: #f0f4f8; color: #0f172a; min-height: 100vh; }
+#error-page { display: none; text-align: center; padding: 80px 20px; }
+#main-page  { display: none; max-width: 500px; margin: 0 auto; padding: 16px 14px 60px; }
+
+.card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; padding: 18px 20px; margin-bottom: 12px; }
+.label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #64748b; margin-bottom: 10px; }
+.row { display: flex; gap: 10px; align-items: baseline; margin-bottom: 7px; font-size: 13.5px; }
+.row-key { color: #94a3b8; width: 56px; flex-shrink: 0; }
+.row-val { color: #0f172a; font-weight: 600; }
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+/* Header */
+.header { background: linear-gradient(135deg, #0f172a, #1e3a6e); border-radius: 14px; padding: 20px 22px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.header-title { color: #fff; font-size: 17px; font-weight: 900; letter-spacing: .03em; }
+.header-sub { color: #93c5fd; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+.header-docno { color: #93c5fd; font-size: 12px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+.header-label { color: #475569; font-size: 10px; }
+
+/* Price card */
+.price-card { background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 2px solid #93c5fd; border-radius: 14px; padding: 16px 20px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.price-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #1d4ed8; margin-bottom: 4px; }
+.price-val { font-size: 30px; font-weight: 900; color: #1e40af; font-family: 'JetBrains Mono', monospace; }
+.price-right { text-align: right; }
+.price-right-label { font-size: 10px; color: #3b82f6; margin-bottom: 3px; }
+.price-right-val { font-size: 13px; font-weight: 700; color: #1d4ed8; margin-bottom: 7px; }
+
+/* Checklist */
+.check-list { display: flex; flex-direction: column; gap: 8px; }
+.check-item { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13.5px; padding: 4px 0; }
+.check-item input { width: 18px; height: 18px; accent-color: #3b82f6; flex-shrink: 0; cursor: pointer; }
+
+/* Signature */
+#sig-wrap { position: relative; }
+#sig-canvas { width: 100%; display: block; border: 2px dashed #cbd5e1; border-radius: 12px; cursor: crosshair; touch-action: none; background: #fafcff; }
+#sig-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; gap: 8px; color: #cbd5e1; font-size: 13px; }
+#sig-status { font-size: 11px; color: #94a3b8; }
+
+/* Confirm button */
+#confirm-btn { width: 100%; background: #1e40af; color: #fff; border: none; border-radius: 14px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: .03em; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background .15s; margin-top: 4px; }
+#confirm-btn:hover { background: #1d4ed8; }
+#confirm-btn:disabled { background: #64748b; cursor: not-allowed; }
+#confirm-hint { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 8px; }
+
+/* Success */
+#success-card { display: none; background: #f0fdf4; border: 2px solid #86efac; border-radius: 14px; padding: 20px; text-align: center; margin-top: 14px; }
+
+/* Hidden receipt for capture */
+#receipt { position: fixed; left: -9999px; top: 0; width: 680px; background: #fff; font-family: 'Noto Sans TC', sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- Error -->
+<div id="error-page">
+  <div style="font-size:48px;margin-bottom:16px">🔗</div>
+  <h2 style="color:#ef4444;font-size:20px;margin-bottom:10px">連結無效或已過期</h2>
+  <p style="color:#64748b;font-size:14px">請向迪特軍 EV 重新索取簽名連結</p>
+</div>
+
+<!-- Main sign page -->
+<div id="main-page">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-sub">迪特軍 EV · 電動車銷售</div>
+      <div class="header-title">電動車銷售簽收單</div>
+    </div>
+    <div style="text-align:right">
+      <div class="header-label">單號</div>
+      <div class="header-docno" id="p-docno">—</div>
+    </div>
+  </div>
+
+  <!-- Buyer -->
+  <div class="card">
+    <div class="label">買方資料</div>
+    <div class="row"><span class="row-key">姓名</span><span class="row-val" id="p-name">—</span></div>
+    <div class="row"><span class="row-key">電話</span><span class="row-val mono" id="p-phone">—</span></div>
+    <div class="row" id="addr-row" style="display:none"><span class="row-key">地址</span><span class="row-val" id="p-address">—</span></div>
+  </div>
+
+  <!-- Vehicle -->
+  <div class="card">
+    <div class="label">車輛資料</div>
+    <div class="row"><span class="row-key">型號</span><span class="row-val" id="p-model">—</span></div>
+    <div class="row" id="specs-row" style="display:none"><span class="row-key">規格</span><span class="row-val" id="p-specs">—</span></div>
+    <div class="row" id="plate-row" style="display:none"><span class="row-key">車牌</span><span class="row-val mono" id="p-plate">—</span></div>
+    <div class="row" id="vin-row" style="display:none"><span class="row-key">VIN</span><span class="row-val mono" style="font-size:11px" id="p-vin">—</span></div>
+  </div>
+
+  <!-- Price -->
+  <div class="price-card">
+    <div>
+      <div class="price-label">銷售金額</div>
+      <div class="price-val" id="p-price">NT$ —</div>
+    </div>
+    <div class="price-right">
+      <div class="price-right-label">付款方式</div>
+      <div class="price-right-val" id="p-payment">—</div>
+      <div class="price-right-label">交車日期</div>
+      <div class="price-right-val" id="p-date">—</div>
+    </div>
+  </div>
+
+  <!-- Checklist -->
+  <div class="card">
+    <div class="label" style="margin-bottom:12px">請確認以下交車項目（點擊勾選）</div>
+    <div class="check-list">
+      <label class="check-item"><input type="checkbox" id="ck1"><span>車輛外觀檢查無損傷</span></label>
+      <label class="check-item"><input type="checkbox" id="ck2"><span>燈光、儀表功能正常</span></label>
+      <label class="check-item"><input type="checkbox" id="ck3"><span>煞車系統測試正常</span></label>
+      <label class="check-item"><input type="checkbox" id="ck4"><span>動力系統操作正常</span></label>
+      <label class="check-item"><input type="checkbox" id="ck5"><span>充電器及配件點收</span></label>
+      <label class="check-item"><input type="checkbox" id="ck6"><span>鑰匙及說明書點收</span></label>
+      <label class="check-item"><input type="checkbox" id="ck7"><span>保固條款說明完畢</span></label>
+      <label class="check-item"><input type="checkbox" id="ck8"><span>操作注意事項說明</span></label>
+    </div>
+    <div id="p-note-block" style="margin-top:12px;padding-top:10px;border-top:1px dashed #e2e8f0;font-size:12px;color:#64748b;display:none"></div>
+  </div>
+
+  <!-- Signature -->
+  <div class="card">
+    <div class="label">本人親筆簽名</div>
+    <p style="font-size:12px;color:#94a3b8;margin-bottom:12px">確認已閱讀並同意上述所有交車項目</p>
+    <div id="sig-wrap">
+      <canvas id="sig-canvas" width="440" height="160"></canvas>
+      <div id="sig-placeholder">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        <span>請在此處用手指簽名</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+      <button onclick="clearSig()" style="background:none;border:1px solid #e2e8f0;border-radius:8px;padding:6px 14px;font-size:12px;color:#64748b;cursor:pointer;font-family:inherit">清除重簽</button>
+      <span id="sig-status">尚未簽名</span>
+    </div>
+  </div>
+
+  <!-- Confirm -->
+  <button id="confirm-btn" onclick="confirmSign()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    確認簽收 · 下載簽收單
+  </button>
+  <p id="confirm-hint">點擊後系統將自動下載含您簽名的 PNG 簽收單<br>請將圖片傳回給迪特軍 EV 存檔</p>
+
+  <!-- Success -->
+  <div id="success-card">
+    <div style="font-size:36px;margin-bottom:10px">✅</div>
+    <div style="font-size:16px;font-weight:700;color:#15803d;margin-bottom:6px">簽收完成！</div>
+    <div style="font-size:13px;color:#16a34a">簽收單已下載到您的手機<br>請將圖片傳給迪特軍 EV 存檔</div>
+  </div>
+
+</div><!-- /main-page -->
+
+<!-- Hidden receipt for html2canvas -->
+<div id="receipt">
+  <div style="background:linear-gradient(135deg,#0f172a,#1e3a6e);padding:24px 32px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="color:#93c5fd;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">Electric Vehicle Sales Receipt</div>
+      <div style="color:#fff;font-size:20px;font-weight:900;letter-spacing:.03em">電動車銷售簽收單</div>
+      <div style="color:#64748b;font-size:11px;margin-top:3px">迪特軍 EV 專業電動車服務</div>
+    </div>
+    <div style="text-align:right">
+      <div style="color:#475569;font-size:10px">單號</div>
+      <div id="r-docno" style="color:#93c5fd;font-size:13px;font-weight:700;font-family:monospace"></div>
+      <div id="r-today" style="color:#64748b;font-size:11px;margin-top:3px"></div>
+    </div>
+  </div>
+  <div style="padding:22px 28px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px;font-size:12px">
+      <div style="padding:14px;border-right:1px solid #e2e8f0">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:8px">買方資料</div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">姓名</span><span id="r-name" style="font-weight:700;color:#0f172a"></span></div>
+          <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">電話</span><span id="r-phone" style="font-family:monospace;color:#334155"></span></div>
+          <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">地址</span><span id="r-address" style="color:#334155"></span></div>
+        </div>
+      </div>
+      <div style="padding:14px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:8px">車輛資料</div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">型號</span><span id="r-model" style="font-weight:700;color:#0f172a"></span></div>
+          <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">規格</span><span id="r-specs" style="color:#334155"></span></div>
+          <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">車牌</span><span id="r-plate" style="font-family:monospace;color:#334155"></span></div>
+          <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">VIN</span><span id="r-vin" style="font-family:monospace;font-size:10px;color:#334155"></span></div>
+        </div>
+      </div>
+    </div>
+    <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #93c5fd;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:3px">銷售金額</div>
+        <div id="r-price" style="font-size:28px;font-weight:900;color:#1e40af;font-family:monospace"></div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:9px;color:#3b82f6;margin-bottom:2px">付款方式</div>
+        <div id="r-payment" style="font-size:13px;font-weight:700;color:#1d4ed8"></div>
+        <div style="font-size:9px;color:#3b82f6;margin-top:5px;margin-bottom:2px">交車日期</div>
+        <div id="r-date" style="font-size:12px;font-weight:600;color:#1d4ed8"></div>
+      </div>
+    </div>
+    <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:11.5px">
+      <div style="font-weight:700;color:#374151;margin-bottom:7px">交車確認項目（客戶已確認）</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;color:#4b5563">
+        <div>☑ 車輛外觀檢查無損傷</div><div>☑ 燈光、儀表功能正常</div>
+        <div>☑ 煞車系統測試正常</div><div>☑ 動力系統操作正常</div>
+        <div>☑ 充電器及配件點收</div><div>☑ 鑰匙及說明書點收</div>
+        <div>☑ 保固條款說明完畢</div><div>☑ 操作注意事項說明</div>
+      </div>
+      <div id="r-note" style="margin-top:8px;padding-top:7px;border-top:1px dashed #e2e8f0;font-size:11px;color:#64748b"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:20px">賣方（迪特軍 EV）簽章：</div>
+        <div style="border-bottom:1px solid #334155;margin-bottom:3px;height:28px"></div>
+        <div style="font-size:9px;color:#94a3b8;text-align:center">迪特軍 EV 門市</div>
+      </div>
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">買方簽名：</div>
+        <div style="height:56px;display:flex;align-items:center;justify-content:center">
+          <img id="r-sig" src="" alt="簽名" style="max-height:52px;max-width:100%">
+        </div>
+        <div style="border-top:1px solid #334155;padding-top:3px">
+          <div id="r-signame" style="font-size:9px;color:#94a3b8;text-align:center"></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:10px;color:#94a3b8;text-align:center">簽署時間：<span id="r-signtime"></span></div>
+  </div>
+  <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:10px 28px;display:flex;justify-content:space-between">
+    <div style="font-size:9px;color:#94a3b8">本簽收單一式二份，買賣雙方各執一份</div>
+    <div style="font-size:9px;color:#94a3b8">迪特軍 EV · 電動車專業服務</div>
+  </div>
+</div><!-- /receipt -->
+
+<script>
+// ── Parse URL data ─────────────────────────────────
+let D = null;
+try {
+  const hash = window.location.hash;
+  if (!hash.startsWith('#sign=')) throw new Error('no sign param');
+  const encoded = hash.slice(6);
+  D = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+} catch(e) {
+  document.getElementById('error-page').style.display = 'block';
+  throw e;
+}
+
+// ── Populate fields ────────────────────────────────
+const $ = id => document.getElementById(id);
+const setText = (id, v) => { const el=$(id); if(el) el.textContent = v||'—'; };
+
+document.title = `迪特軍 EV · 簽收單 · ${D.name||''}`;
+setText('p-docno',   D.docno);
+setText('p-name',    D.name);
+setText('p-phone',   D.phone);
+setText('p-payment', D.payment);
+
+const price = parseInt(D.price)||0;
+$('p-price').textContent = price > 0 ? 'NT$ ' + price.toLocaleString() : 'NT$ —';
+$('p-date').textContent = D.date ? new Date(D.date).toLocaleDateString('zh-TW') : '—';
+
+// Optional fields
+if(D.address) { $('addr-row').style.display='flex'; setText('p-address', D.address); }
+if(D.specs)   { $('specs-row').style.display='flex'; setText('p-specs', D.specs); }
+if(D.plate)   { $('plate-row').style.display='flex'; setText('p-plate', D.plate); }
+if(D.vin)     { $('vin-row').style.display='flex'; setText('p-vin', D.vin); }
+if(D.note)    { $('p-note-block').style.display=''; $('p-note-block').textContent='備註：'+D.note; }
+
+// Show page
+$('main-page').style.display = 'block';
+
+// ── Signature canvas ───────────────────────────────
+const canvas = $('sig-canvas');
+const ctx = canvas.getContext('2d');
+ctx.strokeStyle = '#0f172a';
+ctx.lineWidth = 2.8;
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+
+let drawing = false, hasSig = false;
+
+const getPos = e => {
+  const r = canvas.getBoundingClientRect();
+  const sx = canvas.width / r.width;
+  const sy = canvas.height / r.height;
+  const src = e.touches ? e.touches[0] : e;
+  return { x: (src.clientX - r.left) * sx, y: (src.clientY - r.top) * sy };
+};
+
+canvas.addEventListener('mousedown', e => {
+  drawing = true;
+  const p = getPos(e);
+  ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  $('sig-placeholder').style.display = 'none';
+});
+canvas.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const p = getPos(e);
+  ctx.lineTo(p.x, p.y); ctx.stroke();
+  markSigned();
+});
+canvas.addEventListener('mouseup',    () => drawing = false);
+canvas.addEventListener('mouseleave', () => drawing = false);
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault(); drawing = true;
+  const p = getPos(e);
+  ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  $('sig-placeholder').style.display = 'none';
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault(); if (!drawing) return;
+  const p = getPos(e);
+  ctx.lineTo(p.x, p.y); ctx.stroke();
+  markSigned();
+}, { passive: false });
+canvas.addEventListener('touchend', () => drawing = false);
+
+function markSigned() {
+  if (hasSig) return;
+  hasSig = true;
+  $('sig-status').textContent = '已簽名 ✓';
+  $('sig-status').style.color = '#16a34a';
+  $('sig-status').style.fontWeight = '600';
+}
+
+function clearSig() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasSig = false;
+  $('sig-placeholder').style.display = 'flex';
+  $('sig-status').textContent = '尚未簽名';
+  $('sig-status').style.color = '#94a3b8';
+  $('sig-status').style.fontWeight = '400';
+}
+
+// ── Confirm & Download ─────────────────────────────
+async function confirmSign() {
+  if (!hasSig) {
+    alert('請先用手指在簽名框內完成簽名');
+    return;
+  }
+
+  const btn = $('confirm-btn');
+  btn.disabled = true;
+  btn.textContent = '產生文件中，請稍候…';
+
+  const signTime = new Date().toLocaleString('zh-TW');
+  const sigData  = canvas.toDataURL('image/png');
+
+  // Fill hidden receipt
+  setText('r-docno',   D.docno);
+  setText('r-name',    D.name);
+  setText('r-phone',   D.phone);
+  setText('r-address', D.address||'—');
+  setText('r-model',   D.model);
+  setText('r-specs',   D.specs||'—');
+  setText('r-plate',   D.plate||'—');
+  setText('r-vin',     D.vin||'—');
+  setText('r-payment', D.payment||'—');
+  $('r-price').textContent = price > 0 ? 'NT$ ' + price.toLocaleString() : 'NT$ —';
+  setText('r-date',    D.date ? new Date(D.date).toLocaleDateString('zh-TW') : '—');
+  setText('r-signame', D.name);
+  setText('r-signtime', signTime);
+  $('r-today').textContent = new Date().toLocaleDateString('zh-TW');
+  if(D.note) setText('r-note', '備註：'+D.note);
+
+  const sigImg = $('r-sig');
+  sigImg.src = sigData;
+  await new Promise(r => sigImg.complete ? r() : (sigImg.onload = r));
+
+  try {
+    const receipt = $('receipt');
+    const cvs = await html2canvas(receipt, {
+      scale: 2.5,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      width:  receipt.scrollWidth,
+      height: receipt.scrollHeight
+    });
+
+    const link = document.createElement('a');
+    link.href = cvs.toDataURL('image/png');
+    link.download = `簽收單_${D.name}_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.png`;
+    link.click();
+
+    // Show success
+    btn.style.display = 'none';
+    $('confirm-hint').style.display = 'none';
+    $('success-card').style.display = 'block';
+
+  } catch(err) {
+    console.error(err);
+    alert('下載失敗，請截圖後傳給迪特軍 EV。');
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 確認簽收 · 下載簽收單';
+  }
+}
+</script>
+</body>
+</html>
