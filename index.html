@@ -617,6 +617,9 @@ select.form-input { cursor:pointer; }
           <button class="btn btn-primary" onclick="App.downloadSalesPNG()" style="width:100%;justify-content:center;padding:12px">
             <i data-lucide="image-down" width="16" height="16"></i> 下載簽收單 PNG
           </button>
+          <button class="btn btn-dark" onclick="App.generateSignLink()" style="width:100%;justify-content:center;padding:12px">
+            <i data-lucide="link" width="16" height="16"></i> 產生客戶簽名連結
+          </button>
         </div>
 
         <!-- Right: Preview -->
@@ -725,7 +728,214 @@ select.form-input { cursor:pointer; }
   </div><!-- /content -->
 </div><!-- /main -->
 
-<!-- ===== MODALS ===== -->
+<!-- Sign Link Modal -->
+<div id="modal-signlink" class="modal-backdrop">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-header">
+      <h3 style="font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px">
+        <i data-lucide="link" width="16" height="16" style="color:var(--accent)"></i> 客戶簽名連結
+      </h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-signlink')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:14px 16px;font-size:13px;color:#14532d;display:flex;gap:10px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><polyline points="20 6 9 17 4 12"/></svg>
+        <div>連結已產生！將連結傳給客戶，客戶點開後可在手機上完成簽名並下載簽收單 PNG。</div>
+      </div>
+      <div>
+        <label class="form-label">簽名連結（可複製傳送）</label>
+        <div style="display:flex;gap:8px">
+          <input id="signlink-url" class="form-input" readonly style="font-size:11px;font-family:'JetBrains Mono',monospace;background:#f8fafc">
+          <button class="btn btn-primary" onclick="App.copySignLink()" style="white-space:nowrap;flex-shrink:0" id="copy-link-btn">
+            <i data-lucide="copy" width="14" height="14"></i> 複製
+          </button>
+        </div>
+      </div>
+      <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;padding:12px 14px;font-size:12px;color:#7c2d12">
+        <strong>使用說明：</strong><br>
+        1. 複製連結後用 LINE / 簡訊傳給客戶<br>
+        2. 客戶點開連結，手機上簽名後點「確認簽收」<br>
+        3. 系統自動下載含簽名的 PNG 到客戶手機<br>
+        4. 客戶再將圖片傳回給你存檔
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-signlink')">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CUSTOMER SIGN PAGE (shown when URL has #sign=...) ===== -->
+<div id="sign-page" style="display:none;position:fixed;inset:0;z-index:9998;background:#f0f4f8;overflow-y:auto;font-family:'Noto Sans TC',sans-serif">
+  <div style="max-width:480px;margin:0 auto;padding:16px 12px 40px">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:14px;padding:20px 22px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="color:#93c5fd;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">迪特軍 EV · 電動車銷售</div>
+        <div style="color:#fff;font-size:17px;font-weight:900;letter-spacing:.03em">電動車銷售簽收單</div>
+      </div>
+      <div style="text-align:right">
+        <div style="color:#475569;font-size:10px">單號</div>
+        <div id="sp-docno" style="color:#93c5fd;font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace">—</div>
+      </div>
+    </div>
+
+    <!-- Info Card -->
+    <div style="background:#fff;border-radius:12px;padding:18px;margin-bottom:12px;border:1px solid #e2e8f0">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:12px">買方資料</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px">
+        <div style="display:flex;gap:10px"><span style="color:#94a3b8;width:56px;flex-shrink:0">姓名</span><span id="sp-name" style="font-weight:700;color:#0f172a"></span></div>
+        <div style="display:flex;gap:10px"><span style="color:#94a3b8;width:56px;flex-shrink:0">電話</span><span id="sp-phone" style="font-family:'JetBrains Mono',monospace;color:#334155"></span></div>
+        <div style="display:flex;gap:10px;display:none" id="sp-addr-row"><span style="color:#94a3b8;width:56px;flex-shrink:0">地址</span><span id="sp-address" style="color:#334155"></span></div>
+      </div>
+    </div>
+
+    <!-- Vehicle card -->
+    <div style="background:#fff;border-radius:12px;padding:18px;margin-bottom:12px;border:1px solid #e2e8f0">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:12px">車輛資料</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px">
+        <div style="display:flex;gap:10px"><span style="color:#94a3b8;width:56px;flex-shrink:0">型號</span><span id="sp-model" style="font-weight:700;color:#0f172a"></span></div>
+        <div style="display:flex;gap:10px"><span style="color:#94a3b8;width:56px;flex-shrink:0">規格</span><span id="sp-specs" style="color:#334155"></span></div>
+        <div style="display:flex;gap:10px"><span style="color:#94a3b8;width:56px;flex-shrink:0">車牌</span><span id="sp-plate" style="font-family:'JetBrains Mono',monospace;color:#334155"></span></div>
+        <div style="display:flex;gap:10px;display:none" id="sp-vin-row"><span style="color:#94a3b8;width:56px;flex-shrink:0">VIN</span><span id="sp-vin" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#334155"></span></div>
+      </div>
+    </div>
+
+    <!-- Price card -->
+    <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #93c5fd;border-radius:12px;padding:16px 18px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:4px">銷售金額</div>
+        <div id="sp-price" style="font-size:28px;font-weight:900;color:#1e40af;font-family:'JetBrains Mono',monospace">NT$ —</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:#3b82f6;margin-bottom:3px">付款方式</div>
+        <div id="sp-payment" style="font-size:13px;font-weight:700;color:#1d4ed8"></div>
+        <div style="font-size:10px;color:#3b82f6;margin-top:6px;margin-bottom:3px">交車日期</div>
+        <div id="sp-date" style="font-size:12px;font-weight:600;color:#1d4ed8"></div>
+      </div>
+    </div>
+
+    <!-- Checklist -->
+    <div style="background:#fff;border-radius:12px;padding:16px 18px;margin-bottom:12px;border:1px solid #e2e8f0;font-size:13px">
+      <div style="font-weight:700;color:#374151;margin-bottom:10px">請確認以下交車項目</div>
+      <div style="display:flex;flex-direction:column;gap:8px" id="sp-checklist">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>車輛外觀檢查無損傷</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>燈光、儀表功能正常</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>煞車系統測試正常</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>動力系統操作正常</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>充電器及配件點收</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>鑰匙及說明書點收</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>保固條款說明完畢</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>操作注意事項說明</span></label>
+      </div>
+      <div id="sp-note-block" style="margin-top:10px;padding-top:10px;border-top:1px dashed #e2e8f0;font-size:12px;color:#64748b;display:none"></div>
+    </div>
+
+    <!-- Signature -->
+    <div style="background:#fff;border-radius:12px;padding:16px 18px;margin-bottom:16px;border:1px solid #e2e8f0">
+      <div style="font-weight:700;color:#374151;margin-bottom:4px;font-size:13px">本人親筆簽名</div>
+      <div style="font-size:11.5px;color:#94a3b8;margin-bottom:10px">確認已閱讀並同意上述交車事項</div>
+      <div style="position:relative">
+        <canvas id="sp-sig-canvas" width="440" height="140" style="width:100%;border:2px dashed #cbd5e1;border-radius:10px;cursor:crosshair;touch-action:none;background:#fafcff;display:block"></canvas>
+        <div id="sp-sig-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:6px">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          <span style="color:#cbd5e1;font-size:13px">請在此處簽名</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <button onclick="SignPage.clearSig()" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:5px 12px;font-size:12px;color:#64748b;cursor:pointer;font-family:inherit">清除重簽</button>
+        <span id="sp-sig-status" style="font-size:11px;color:#94a3b8">尚未簽名</span>
+      </div>
+    </div>
+
+    <!-- Confirm button -->
+    <button id="sp-confirm-btn" onclick="SignPage.confirm()" style="width:100%;background:#1e40af;color:#fff;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.03em;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#1e40af'">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      確認簽收 · 下載簽收單
+    </button>
+    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:10px">點擊後系統將自動下載含您簽名的 PNG 簽收單</p>
+
+    <!-- Hidden receipt for capture -->
+    <div id="sp-receipt" style="position:fixed;left:-9999px;top:0;width:640px;background:#fff;font-family:'Noto Sans TC',sans-serif">
+      <div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:24px 32px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="color:#93c5fd;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">Electric Vehicle Sales Receipt</div>
+          <div style="color:#fff;font-size:20px;font-weight:900;letter-spacing:.03em">電動車銷售簽收單</div>
+          <div style="color:#64748b;font-size:11px;margin-top:3px">迪特軍 EV 專業電動車服務</div>
+        </div>
+        <div style="text-align:right">
+          <div style="color:#475569;font-size:10px">單號</div>
+          <div id="sp-r-docno" style="color:#93c5fd;font-size:13px;font-weight:700;font-family:monospace"></div>
+          <div id="sp-r-date" style="color:#64748b;font-size:11px;margin-top:3px"></div>
+        </div>
+      </div>
+      <div style="padding:22px 28px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px;font-size:12px">
+          <div style="padding:14px;border-right:1px solid #e2e8f0">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:8px">買方資料</div>
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">姓名</span><span id="sp-r-name" style="font-weight:700;color:#0f172a"></span></div>
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">電話</span><span id="sp-r-phone" style="font-family:monospace;color:#334155"></span></div>
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">地址</span><span id="sp-r-address" style="color:#334155"></span></div>
+            </div>
+          </div>
+          <div style="padding:14px">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:8px">車輛資料</div>
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">型號</span><span id="sp-r-model" style="font-weight:700;color:#0f172a"></span></div>
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">規格</span><span id="sp-r-specs" style="color:#334155"></span></div>
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">車牌</span><span id="sp-r-plate" style="font-family:monospace;color:#334155"></span></div>
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">VIN</span><span id="sp-r-vin" style="font-family:monospace;font-size:10px;color:#334155"></span></div>
+            </div>
+          </div>
+        </div>
+        <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #93c5fd;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div>
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:3px">銷售金額</div>
+            <div id="sp-r-price" style="font-size:28px;font-weight:900;color:#1e40af;font-family:monospace">NT$ —</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:9px;color:#3b82f6;margin-bottom:2px">付款方式</div>
+            <div id="sp-r-payment" style="font-size:13px;font-weight:700;color:#1d4ed8"></div>
+            <div style="font-size:9px;color:#3b82f6;margin-top:5px;margin-bottom:2px">交車日期</div>
+            <div id="sp-r-datestr" style="font-size:12px;font-weight:600;color:#1d4ed8"></div>
+          </div>
+        </div>
+        <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:11.5px">
+          <div style="font-weight:700;color:#374151;margin-bottom:7px">交車確認項目（客戶已確認）</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;color:#4b5563">
+            <div>☑ 車輛外觀檢查無損傷</div><div>☑ 燈光、儀表功能正常</div>
+            <div>☑ 煞車系統測試正常</div><div>☑ 動力系統操作正常</div>
+            <div>☑ 充電器及配件點收</div><div>☑ 鑰匙及說明書點收</div>
+            <div>☑ 保固條款說明完畢</div><div>☑ 操作注意事項說明</div>
+          </div>
+          <div id="sp-r-note" style="margin-top:8px;padding-top:7px;border-top:1px dashed #e2e8f0;font-size:11px;color:#64748b"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px">
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:20px">賣方（迪特軍 EV）簽章：</div>
+            <div style="border-bottom:1px solid #334155;margin-bottom:3px;height:28px"></div>
+            <div style="font-size:9px;color:#94a3b8;text-align:center">迪特軍 EV 門市</div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px">
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">買方簽名：</div>
+            <div style="height:52px;display:flex;align-items:center;justify-content:center">
+              <img id="sp-r-sig" src="" alt="簽名" style="max-height:48px;max-width:100%">
+            </div>
+            <div style="border-top:1px solid #334155;padding-top:3px">
+              <div id="sp-r-signame" style="font-size:9px;color:#94a3b8;text-align:center"></div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:#94a3b8;text-align:center">簽署時間：<span id="sp-r-signtime"></span></div>
+      </div>
+      <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:10px 28px;display:flex;justify-content:space-between">
+        <div style="font-size:9px;color:#94a3b8">本簽收單一式二份，買賣雙方各執一份</div>
+        <div style="font-size:9px;color:#94a3b8">迪特軍 EV · 電動車專業服務</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Customer Modal -->
 <div id="modal-customer" class="modal-backdrop">
@@ -1701,6 +1911,38 @@ const App = {
     finally{loading(false);}
   },
 
+  generateSignLink() {
+    const get = id => document.getElementById(id)?.value||'';
+    const data = {
+      docno: document.getElementById('sr-doc-no').textContent,
+      name:    get('sr-name'),    phone:   get('sr-phone'),
+      address: get('sr-address'), model:   get('sr-model'),
+      specs:   get('sr-specs'),   plate:   get('sr-plate'),
+      vin:     get('sr-vin'),     price:   get('sr-price'),
+      payment: get('sr-payment'), date:    get('sr-date'),
+      note:    get('sr-note')
+    };
+    if(!data.name) { alert('請先填寫客戶姓名'); return; }
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    const base = window.location.href.split('#')[0].split('?')[0];
+    const link = `${base}#sign=${encoded}`;
+    document.getElementById('signlink-url').value = link;
+    this.openModal('modal-signlink');
+  },
+
+  copySignLink() {
+    const url = document.getElementById('signlink-url').value;
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.getElementById('copy-link-btn');
+      btn.innerHTML = '<i data-lucide="check" width="14" height="14"></i> 已複製';
+      lucide.createIcons();
+      setTimeout(() => { btn.innerHTML = '<i data-lucide="copy" width="14" height="14"></i> 複製'; lucide.createIcons(); }, 2000);
+    }).catch(() => {
+      document.getElementById('signlink-url').select();
+      document.execCommand('copy');
+    });
+  },
+
   // ---- Settings ----
   saveApiUrl() {
     const u = document.getElementById('setting-url').value.trim();
@@ -1739,7 +1981,179 @@ const App = {
   }
 };
 
-// CSS for active filter button
+// ====================================================
+//  SIGN PAGE (customer-facing)
+// ====================================================
+const SignPage = {
+  data: null,
+  hasSig: false,
+  drawing: false,
+
+  init(encoded) {
+    try {
+      this.data = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+    } catch(e) {
+      document.getElementById('sign-page').innerHTML = '<div style="text-align:center;padding:60px 20px;font-family:sans-serif"><h2 style="color:#ef4444">連結無效或已過期</h2><p style="color:#64748b;margin-top:8px">請向店家重新索取簽名連結。</p></div>';
+      document.getElementById('sign-page').style.display = 'block';
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app-shell').style.display = 'none';
+      return;
+    }
+
+    // Hide login & app
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-shell').style.display = 'none';
+    document.getElementById('sign-page').style.display = 'block';
+
+    const d = this.data;
+    const setText = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v||'—'; };
+    const price = parseInt(d.price)||0;
+
+    setText('sp-docno', d.docno);
+    setText('sp-name',  d.name);
+    setText('sp-phone', d.phone);
+    setText('sp-model', d.model);
+    setText('sp-specs', d.specs||'—');
+    setText('sp-plate', d.plate||'—');
+    setText('sp-payment', d.payment||'—');
+
+    // Address & VIN (show only if filled)
+    if(d.address) { const r=document.getElementById('sp-addr-row'); if(r){r.style.display='flex';document.getElementById('sp-address').textContent=d.address;} }
+    if(d.vin)     { const r=document.getElementById('sp-vin-row');  if(r){r.style.display='flex';document.getElementById('sp-vin').textContent=d.vin;} }
+
+    document.getElementById('sp-price').textContent = price>0 ? 'NT$ '+price.toLocaleString() : 'NT$ —';
+    document.getElementById('sp-date').textContent = d.date ? new Date(d.date).toLocaleDateString('zh-TW') : '—';
+    if(d.note) { const nb=document.getElementById('sp-note-block'); if(nb){nb.textContent='備註：'+d.note; nb.style.display='';} }
+
+    this._initCanvas();
+  },
+
+  _initCanvas() {
+    const canvas = document.getElementById('sp-sig-canvas');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const getPos = e => {
+      const r=canvas.getBoundingClientRect(), sx=canvas.width/r.width, sy=canvas.height/r.height;
+      if(e.touches) return{x:(e.touches[0].clientX-r.left)*sx,y:(e.touches[0].clientY-r.top)*sy};
+      return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};
+    };
+    const start = e => {
+      e.preventDefault(); this.drawing=true;
+      const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y);
+      document.getElementById('sp-sig-placeholder').style.display='none';
+    };
+    const draw = e => {
+      if(!this.drawing) return; e.preventDefault();
+      const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke();
+      this.hasSig=true;
+      document.getElementById('sp-sig-status').textContent='已簽名 ✓';
+      document.getElementById('sp-sig-status').style.color='#16a34a';
+    };
+    const stop = () => this.drawing = false;
+    canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',draw);
+    canvas.addEventListener('mouseup',stop);    canvas.addEventListener('mouseleave',stop);
+    canvas.addEventListener('touchstart',start,{passive:false});
+    canvas.addEventListener('touchmove',draw,{passive:false});
+    canvas.addEventListener('touchend',stop);
+  },
+
+  clearSig() {
+    const canvas = document.getElementById('sp-sig-canvas');
+    canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+    this.hasSig = false;
+    document.getElementById('sp-sig-placeholder').style.display='';
+    document.getElementById('sp-sig-status').textContent='尚未簽名';
+    document.getElementById('sp-sig-status').style.color='#94a3b8';
+  },
+
+  async confirm() {
+    if(!this.hasSig) { alert('請先完成簽名再確認簽收'); return; }
+    const btn = document.getElementById('sp-confirm-btn');
+    btn.textContent = '處理中…'; btn.disabled = true;
+
+    const d = this.data;
+    const price = parseInt(d.price)||0;
+    const sigData = document.getElementById('sp-sig-canvas').toDataURL('image/png');
+    const signTime = new Date().toLocaleString('zh-TW');
+
+    // Fill hidden receipt
+    const setText = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v||''; };
+    setText('sp-r-docno',   d.docno);
+    setText('sp-r-name',    d.name);
+    setText('sp-r-phone',   d.phone);
+    setText('sp-r-address', d.address||'—');
+    setText('sp-r-model',   d.model);
+    setText('sp-r-specs',   d.specs||'—');
+    setText('sp-r-plate',   d.plate||'—');
+    setText('sp-r-vin',     d.vin||'—');
+    setText('sp-r-payment', d.payment||'—');
+    document.getElementById('sp-r-price').textContent = price>0 ? 'NT$ '+price.toLocaleString() : 'NT$ —';
+    setText('sp-r-date',    new Date().toLocaleDateString('zh-TW'));
+    setText('sp-r-datestr', d.date ? new Date(d.date).toLocaleDateString('zh-TW') : '—');
+    setText('sp-r-signame', d.name);
+    setText('sp-r-signtime', signTime);
+    if(d.note) setText('sp-r-note', '備註：'+d.note);
+    const sigImg = document.getElementById('sp-r-sig');
+    sigImg.src = sigData;
+
+    // Load html2canvas if needed
+    if(typeof html2canvas === 'undefined') {
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s.onload=res; s.onerror=rej; document.head.appendChild(s);
+      });
+    }
+
+    // Wait for sig image to load
+    await new Promise(r => { if(sigImg.complete) r(); else sigImg.onload=r; });
+
+    try {
+      const receipt = document.getElementById('sp-receipt');
+      const canvas = await html2canvas(receipt, {
+        scale: 2.5, useCORS: true, backgroundColor: '#ffffff',
+        logging: false, width: receipt.scrollWidth, height: receipt.scrollHeight
+      });
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = `簽收單_${d.name}_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.png`;
+      link.click();
+
+      // Show success state
+      btn.style.background = '#15803d';
+      btn.innerHTML = '✓ 簽收完成！圖片已下載';
+      document.getElementById('sp-confirm-btn').disabled = true;
+      document.querySelector('#sign-page > div').insertAdjacentHTML('beforeend',
+        `<div style="background:#f0fdf4;border:2px solid #86efac;border-radius:12px;padding:16px;text-align:center;margin-top:14px;font-size:13.5px;color:#14532d;font-weight:600">
+          ✓ 簽收完成！<br><span style="font-weight:400;font-size:12px;color:#16a34a;margin-top:4px;display:block">請將下載的圖片傳回給迪特軍 EV 存檔</span>
+        </div>`
+      );
+    } catch(e) {
+      alert('下載失敗，請截圖後傳給店家。');
+      btn.textContent = '確認簽收 · 下載簽收單'; btn.disabled = false;
+      console.error(e);
+    }
+  }
+};
+
+// ====================================================
+//  HASH ROUTER — run before auth check
+// ====================================================
+(function() {
+  const hash = window.location.hash;
+  if(hash.startsWith('#sign=')) {
+    const encoded = hash.slice(6);
+    // Defer until DOM ready
+    if(document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => SignPage.init(encoded));
+    } else {
+      SignPage.init(encoded);
+    }
+    // Skip normal auth flow
+    window._isSignPage = true;
+  }
+})();
 document.head.insertAdjacentHTML('beforeend','<style>.repair-filter.active-filter{background:var(--accent)!important;color:#fff!important;border-color:var(--accent-dark)!important}</style>');
 
 // ====================================================
@@ -1798,6 +2212,9 @@ const Auth = {
 };
 
 window.addEventListener('load', async () => {
+  // Skip auth entirely if this is a customer sign page
+  if(window._isSignPage) return;
+
   // Re-compute real hash and store it for comparison
   Auth.HASH = await Auth.hash('Gerven0530');
 
