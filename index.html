@@ -1926,8 +1926,9 @@ const App = {
     };
     if(!data.name) { alert('請先填寫客戶姓名'); return; }
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-    const base = window.location.href.split('#')[0].split('?')[0];
-    const link = `${base}#sign=${encoded}`;
+    // Point to sign.html in the same directory
+    const base = window.location.href.split('/').slice(0,-1).join('/');
+    const link = `${base}/sign.html#sign=${encoded}`;
     document.getElementById('signlink-url').value = link;
     this.openModal('modal-signlink');
   },
