@@ -1287,7 +1287,7 @@ select.form-input { cursor:pointer; }
 const API = {
   url: '',
   init() {
-    this.url = localStorage.getItem('diter_api_url') || 'https://script.google.com/macros/s/AKfycbwoMdmxz7tkgrKTvHx2AnO2lPookVs5m36fopxTqpbW1RKKJcIpgJwEHRLyvzOR34Kq/exec';
+    this.url = localStorage.getItem('diter_api_url') || 'https://script.google.com/macros/s/AKfycbxbLxjrCJwS9_Sj67lbQP8MeZa3LqxZGjjhOSA-RiBAEozKwzJRcGaj4IcbElk8pXcf/exec';
     const el = document.getElementById('setting-url');
     if(el) el.value = this.url;
     this.updateStatus(!!this.url);
