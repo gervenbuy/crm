@@ -240,6 +240,11 @@ select.form-input { cursor:pointer; }
       <i data-lucide="file-pen" width="16" height="16" style="flex-shrink:0"></i>
       <span class="nav-label">銷售簽收單</span>
     </button>
+    <button class="nav-btn" id="nav-intake" onclick="App.nav('intake')">
+      <i data-lucide="clipboard-list" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">維修問卷匯入</span>
+      <span class="nav-badge" id="badge-intake" style="display:none;background:#f59e0b">0</span>
+    </button>
     <div style="border-top:1px solid rgba(255,255,255,.06);margin:8px 0"></div>
     <button class="nav-btn" id="nav-settings" onclick="App.nav('settings')">
       <i data-lucide="settings" width="16" height="16" style="flex-shrink:0"></i>
@@ -727,8 +732,96 @@ select.form-input { cursor:pointer; }
       </div>
     </div>
 
+    <!-- INTAKE VIEW -->
+    <div id="view-intake" class="view fade-up">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <!-- Share form link card -->
+        <div class="card" style="border:2px solid #fbbf24;background:#fffbeb">
+          <h3 style="font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;color:#78350f">
+            <i data-lucide="share-2" width="14" height="14"></i> 傳送問卷給客戶
+          </h3>
+          <p style="font-size:12px;color:#92400e;margin-bottom:12px;line-height:1.6">將維修登記問卷連結傳給客戶，客戶填完後傳回連結，你一鍵匯入即可建立客戶 + 工單。</p>
+          <button class="btn btn-dark btn-sm" onclick="App.copyIntakeFormLink()" style="width:100%;justify-content:center;padding:9px;background:#92400e;border-color:#92400e">
+            <i data-lucide="copy" width="13" height="13"></i> 複製問卷連結
+          </button>
+        </div>
+        <!-- Paste import link card -->
+        <div class="card" style="border:2px solid var(--accent);background:#eff6ff">
+          <h3 style="font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;color:#1e40af">
+            <i data-lucide="download" width="14" height="14"></i> 貼入客戶回傳連結
+          </h3>
+          <p style="font-size:12px;color:#1d4ed8;margin-bottom:10px;line-height:1.6">客戶填完問卷後會收到一組連結，貼在下方即可自動解析並匯入。</p>
+          <div style="display:flex;gap:6px">
+            <input class="form-input" id="intake-link-input" placeholder="貼入 #import=... 的連結" style="font-size:11px;flex:1;min-width:0">
+            <button class="btn btn-primary btn-sm" onclick="App.parseIntakeLink()" style="flex-shrink:0;padding:7px 12px">解析</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pending intake list -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <h3 style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px">
+            <i data-lucide="inbox" width="14" height="14" style="color:var(--accent)"></i>
+            待處理問卷
+          </h3>
+          <span id="intake-count" style="font-size:11px;color:var(--muted)">0 筆</span>
+        </div>
+        <div id="intake-list" style="padding:8px 0">
+          <div style="text-align:center;padding:32px;color:var(--muted);font-size:13px">
+            尚無待處理問卷<br><span style="font-size:11px;margin-top:4px;display:block">客戶填完問卷後，貼入連結即可在此查看</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
+
+<!-- Intake Import Modal -->
+<div id="modal-intake" class="modal-backdrop">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <h3 style="font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px">
+        <i data-lucide="clipboard-list" width="16" height="16" style="color:var(--accent)"></i> 匯入維修問卷
+      </h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-intake')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:13px 16px;font-size:12.5px;color:#14532d;display:flex;gap:10px;align-items:flex-start">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>解析成功！請確認以下資料後點「建立客戶與工單」完成匯入。</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">客戶資料</div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:13px" id="intake-preview-customer"></div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">車輛資訊</div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:13px" id="intake-preview-vehicle"></div>
+        </div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">維修需求</div>
+        <div style="display:flex;flex-direction:column;gap:5px;font-size:13px" id="intake-preview-repair"></div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">預約資訊</div>
+        <div style="display:flex;flex-direction:column;gap:5px;font-size:13px" id="intake-preview-appt"></div>
+      </div>
+      <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;padding:11px 14px;font-size:12px;color:#7c2d12">
+        <strong>匯入後：</strong>系統將自動建立「新客戶」和「待修工單」，可在客戶管理與維修工單頁面查看及編輯。
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-intake')">取消</button>
+      <button class="btn btn-primary" id="intake-confirm-btn" onclick="App.confirmIntakeImport()" style="background:#16a34a;border-color:#15803d">
+        <i data-lucide="user-plus" width="14" height="14"></i> 建立客戶與工單
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- Sign Link Modal -->
 <div id="modal-signlink" class="modal-backdrop">
@@ -1312,7 +1405,7 @@ const App = {
     void document.getElementById('view-'+v).offsetWidth;
     document.getElementById('view-'+v).classList.add('fade-up');
     this.currentView = v;
-    const titles = {dashboard:'儀表板',customers:'客戶 & 車籍',repairs:'維修工單中心',inventory:'零件庫存',warranty:'保固書製作',sales:'銷售簽收單',settings:'系統設定'};
+    const titles = {dashboard:'儀表板',customers:'客戶 & 車籍',repairs:'維修工單中心',inventory:'零件庫存',warranty:'保固書製作',sales:'銷售簽收單',intake:'維修問卷匯入',settings:'系統設定'};
     document.getElementById('page-title').textContent = titles[v]||v;
     if(v==='dashboard') this.renderDashboard();
     if(v==='customers') this.renderCustomers();
@@ -1320,6 +1413,7 @@ const App = {
     if(v==='inventory') this.renderInventory();
     if(v==='warranty')  this.initWarranty();
     if(v==='sales')     this.initSales();
+    if(v==='intake')    this.initIntake();
     lucide.createIcons();
   },
 
@@ -1762,6 +1856,200 @@ const App = {
       this.nav(this.currentView); this.updateKPIs();
     };
     this.openModal('modal-confirm');
+  },
+
+  // ---- Intake Form ----
+  _intakePending: [],
+  _intakeData: null,
+
+  initIntake() {
+    this.renderIntakePending();
+    // Check URL hash for auto-import
+    const hash = window.location.hash;
+    if(hash.startsWith('#import=')) {
+      const encoded = hash.slice(8);
+      window.location.hash = '';
+      setTimeout(() => this.parseIntakeLinkData(encoded), 400);
+    }
+    lucide.createIcons();
+  },
+
+  copyIntakeFormLink() {
+    const base = window.location.href.split('/').slice(0,-1).join('/');
+    const link = base + '/repair_form.html';
+    navigator.clipboard.writeText(link).then(() => {
+      toast('問卷連結已複製！傳給客戶即可');
+    }).catch(() => {
+      prompt('請複製此問卷連結：', link);
+    });
+  },
+
+  parseIntakeLink() {
+    const input = document.getElementById('intake-link-input').value.trim();
+    const hashIdx = input.indexOf('#import=');
+    if(hashIdx === -1) { alert('連結格式不正確，請確認是否包含 #import= 的參數'); return; }
+    const encoded = input.slice(hashIdx + 8);
+    this.parseIntakeLinkData(encoded);
+  },
+
+  parseIntakeLinkData(encoded) {
+    let data;
+    try {
+      data = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+    } catch(e) { alert('連結解析失敗，資料可能已損毀'); return; }
+    this._intakeData = data;
+
+    const typeMap = {repair:'故障維修',regular:'定期保養',battery:'電池問題',upgrade:'升級改裝'};
+    const urgMap  = {normal:'一般維修',urgent:'盡快處理',asap:'緊急！無法騎乘'};
+    const timeMap = {morning:'上午 09:00–12:00',afternoon:'下午 13:00–17:00',evening:'傍晚 17:00–19:00'};
+
+    const row = (k,v) => v ? `<div style="display:flex;gap:8px"><span style="color:var(--muted);width:64px;flex-shrink:0">${k}</span><span style="font-weight:600;color:var(--text)">${v}</span></div>` : '';
+
+    const c = data.customer||{}, ve = data.vehicle||{}, r = data.repair||{}, a = data.appointment||{};
+
+    document.getElementById('intake-preview-customer').innerHTML =
+      row('姓名', c.name) + row('電話', c.phone) + row('LINE', c.line) + row('地址', c.address) ||
+      '<span style="color:var(--muted)">—</span>';
+
+    document.getElementById('intake-preview-vehicle').innerHTML =
+      row('車型', ve.model) + row('車牌', ve.plate) + row('VIN', ve.vin) +
+      row('規格', ve.specs) + row('里程', ve.mileage ? ve.mileage+' km':'') +
+      row('購車日', ve.purchaseDate ? new Date(ve.purchaseDate).toLocaleDateString('zh-TW'):'') ||
+      '<span style="color:var(--muted)">—</span>';
+
+    const symsHtml = r.symptoms?.length
+      ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">${r.symptoms.map(s=>`<span style="background:#f1f5f9;color:#475569;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600">${s}</span>`).join('')}</div>`
+      : '';
+
+    document.getElementById('intake-preview-repair').innerHTML =
+      row('類型', typeMap[r.type]||r.type) +
+      row('緊急度', urgMap[r.urgency]||r.urgency) +
+      (symsHtml ? `<div style="display:flex;gap:8px"><span style="color:var(--muted);width:64px;flex-shrink:0">症狀</span>${symsHtml}</div>` : '') +
+      (r.description ? `<div style="margin-top:4px;font-size:12.5px;color:var(--text);line-height:1.6;background:#f8fafc;border-radius:6px;padding:8px 10px">${r.description}</div>` : '');
+
+    document.getElementById('intake-preview-appt').innerHTML =
+      row('日期', a.date ? new Date(a.date).toLocaleDateString('zh-TW') : '') +
+      row('時段', timeMap[a.time]||a.time) +
+      row('備註', a.note) +
+      row('單號', data.orderNo);
+
+    this.openModal('modal-intake');
+  },
+
+  confirmIntakeImport() {
+    const data = this._intakeData;
+    if(!data) return;
+    const c = data.customer||{}, ve = data.vehicle||{}, r = data.repair||{}, a = data.appointment||{};
+
+    // Create customer
+    const custId = gid();
+    const customer = {
+      id: custId,
+      name:         c.name||'未知客戶',
+      phone:        c.phone||'',
+      address:      c.address||'',
+      notes:        c.line ? 'LINE: '+c.line : '',
+      category:     'repair',
+      model:        ve.model||'',
+      plate:        ve.plate||'',
+      vin:          ve.vin||'',
+      specs:        ve.specs||'',
+      purchaseDate: ve.purchaseDate||'',
+      warrantyDays: '365',
+      price:        ''
+    };
+
+    // Check for duplicate phone
+    const existing = Store.db.customers.find(x => x.phone && x.phone === c.phone);
+    let targetId = custId;
+    if(existing) {
+      targetId = existing.id;
+      toast(`⚠ 已有相同電話的客戶「${existing.name}」，工單將建立在現有客戶下`);
+    } else {
+      Store.db.customers.push(customer);
+      Store.push('Customers', customer);
+    }
+
+    // Urgency → status mapping
+    const statusMap = { normal:'pending', urgent:'pending', asap:'fixing' };
+
+    // Build repair description with symptoms
+    const sympLine = r.symptoms?.length ? `【症狀】${r.symptoms.join('、')}\n` : '';
+    const urgLine  = r.urgency==='asap' ? '⚠ 緊急：客戶表示無法騎乘\n' : r.urgency==='urgent' ? '⚡ 希望盡快處理\n' : '';
+    const apptLine = a.date ? `【預約】${new Date(a.date).toLocaleDateString('zh-TW')} ${a.time==='morning'?'上午':a.time==='afternoon'?'下午':'傍晚'}\n` : '';
+    const noteLine = a.note ? `【備註】${a.note}` : '';
+    const fullDesc = urgLine + sympLine + (r.description||'') + '\n' + apptLine + noteLine;
+
+    const repair = {
+      id:          gid(),
+      customerId:  targetId,
+      date:        data.submittedAt || new Date().toISOString(),
+      type:        r.type==='battery' ? 'battery' : r.type==='regular' ? 'regular' : 'repair',
+      status:      statusMap[r.urgency]||'pending',
+      mileage:     ve.mileage||'',
+      description: fullDesc.trim(),
+      note:        `來源：客戶維修問卷 ${data.orderNo||''}`,
+      partsCost:   0, laborCost: 0, totalCost: 0
+    };
+
+    Store.db.repairs.push(repair);
+    Store.push('Repairs', repair);
+    Store.save();
+
+    // Store in pending list with status
+    this._intakePending.push({ ...data, _imported: true, _importedAt: new Date().toISOString() });
+
+    this.closeModal('modal-intake');
+    document.getElementById('intake-link-input').value = '';
+    this._intakeData = null;
+    this.updateKPIs();
+    this.renderIntakePending();
+
+    setTimeout(() => {
+      if(confirm(`✓ 匯入成功！\n客戶「${c.name}」和維修工單已建立。\n\n是否前往查看維修工單？`)) {
+        this.nav('repairs');
+      }
+    }, 150);
+  },
+
+  renderIntakePending() {
+    const list = document.getElementById('intake-list');
+    const countEl = document.getElementById('intake-count');
+    if(!list) return;
+
+    const items = this._intakePending;
+    if(countEl) countEl.textContent = items.length + ' 筆';
+
+    const badge = document.getElementById('badge-intake');
+    const pending = items.filter(i=>!i._imported).length;
+    if(badge) { badge.textContent = pending; badge.style.display = pending>0?'':'none'; }
+
+    if(!items.length) {
+      list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px">尚無待處理問卷<br><span style="font-size:11px;margin-top:4px;display:block">客戶填完問卷後，貼入連結即可在此查看</span></div>';
+      return;
+    }
+
+    const urgColor = {normal:'#16a34a',urgent:'#d97706',asap:'#ef4444'};
+    list.innerHTML = items.slice().reverse().map(item => {
+      const c = item.customer||{}, r = item.repair||{}, a = item.appointment||{};
+      const uCol = urgColor[r.urgency]||'#64748b';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border)">
+        <div style="width:8px;height:8px;border-radius:50%;background:${uCol};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:13.5px">${c.name||'—'} <span style="font-size:11px;color:var(--muted);font-weight:400">${c.phone||''}</span></div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${item.vehicle?.model||'—'} · ${r.description?.substring(0,40)||''}…</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          ${item._imported
+            ? '<span style="font-size:11px;background:#f0fdf4;color:#16a34a;border:1px solid #86efac;border-radius:99px;padding:2px 8px;font-weight:700">已匯入</span>'
+            : '<span style="font-size:11px;background:#fffbeb;color:#b45309;border:1px solid #fcd34d;border-radius:99px;padding:2px 8px;font-weight:700">待處理</span>'
+          }
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">${item.orderNo||''}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    lucide.createIcons();
   },
 
   // ---- Warranty ----
@@ -2226,6 +2514,10 @@ window.addEventListener('load', async () => {
   if(Auth.isLoggedIn()) {
     Auth.hideLoginScreen();
     App.init();
+    // Auto-navigate to intake if URL has #import=
+    if(window.location.hash.startsWith('#import=')) {
+      setTimeout(() => App.nav('intake'), 600);
+    }
   } else {
     Auth.showLoginScreen();
   }

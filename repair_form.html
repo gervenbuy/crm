@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>迪特軍 EV · 維修預約登記</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #2563eb;
+  --accent-dark: #1d4ed8;
+  --accent-light: #eff6ff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --surface: #ffffff;
+  --bg: #f1f5f9;
+  --danger: #ef4444;
+  --success: #16a34a;
+  --warning: #d97706;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 0 0 60px; }
+
+/* Header */
+.page-header {
+  background: linear-gradient(135deg, #0c1a35, #1e3a6e);
+  padding: 28px 20px 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.page-header::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 70% 50%, rgba(59,130,246,.18) 0%, transparent 60%);
+}
+.header-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(59,130,246,.2); border: 1px solid rgba(59,130,246,.4);
+  color: #93c5fd; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; padding: 4px 12px; border-radius: 99px;
+  margin-bottom: 12px; position: relative;
+}
+.header-title { color: #fff; font-size: 22px; font-weight: 900; letter-spacing: .03em; margin-bottom: 5px; position: relative; }
+.header-sub { color: #64748b; font-size: 12px; position: relative; }
+
+/* Progress bar */
+.progress-bar {
+  background: #fff; border-bottom: 1px solid var(--border);
+  padding: 14px 20px; display: flex; align-items: center; gap: 0;
+  position: sticky; top: 0; z-index: 10;
+}
+.prog-step {
+  display: flex; align-items: center; gap: 6px; flex: 1;
+  cursor: pointer;
+}
+.prog-step:last-child { flex: 0; }
+.prog-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+  border: 2px solid var(--border); background: #fff; color: var(--muted);
+  transition: all .2s;
+}
+.prog-dot.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.prog-dot.done { background: #dcfce7; border-color: #16a34a; color: #16a34a; }
+.prog-label { font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.prog-label.active { color: var(--accent); }
+.prog-line { flex: 1; height: 2px; background: var(--border); margin: 0 8px; transition: background .3s; }
+.prog-line.done { background: #16a34a; }
+
+/* Content */
+.content { max-width: 560px; margin: 0 auto; padding: 24px 16px 0; }
+
+/* Step */
+.step { display: none; }
+.step.active { display: block; animation: fadeUp .25s ease both; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+.step-title {
+  font-size: 17px; font-weight: 900; color: var(--text);
+  margin-bottom: 4px; display: flex; align-items: center; gap: 8px;
+}
+.step-sub { font-size: 12.5px; color: var(--muted); margin-bottom: 20px; }
+
+/* Card */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 14px; }
+.card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 14px; }
+
+/* Fields */
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field label { font-size: 12px; font-weight: 700; color: var(--text); }
+.field label .req { color: var(--danger); margin-left: 2px; }
+.field label .opt { color: var(--muted); font-weight: 400; font-size: 11px; margin-left: 4px; }
+.field input, .field select, .field textarea {
+  border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 13px;
+  font-size: 14px; font-family: inherit; color: var(--text); background: var(--surface);
+  outline: none; transition: border-color .15s, box-shadow .15s; width: 100%;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.field input.error, .field select.error, .field textarea.error {
+  border-color: var(--danger); box-shadow: 0 0 0 3px rgba(239,68,68,.1);
+}
+.field textarea { resize: vertical; min-height: 88px; line-height: 1.65; }
+.field-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field-hint { font-size: 11px; color: var(--muted); }
+.field-error { font-size: 11px; color: var(--danger); display: none; }
+.field input.error + .field-error,
+.field select.error + .field-error,
+.field textarea.error + .field-error { display: block; }
+
+/* Type selector */
+.type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.type-card {
+  border: 2px solid var(--border); border-radius: 12px; padding: 14px 12px;
+  cursor: pointer; transition: all .15s; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: var(--surface);
+}
+.type-card:hover { border-color: #93c5fd; background: #f0f7ff; }
+.type-card.selected { border-color: var(--accent); background: var(--accent-light); }
+.type-card.selected .type-icon { background: var(--accent); color: #fff; }
+.type-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: #f1f5f9; color: var(--muted);
+  display: flex; align-items: center; justify-content: center; transition: all .15s;
+}
+.type-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.type-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+/* Urgency selector */
+.urgency-list { display: flex; flex-direction: column; gap: 8px; }
+.urgency-item {
+  border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 14px;
+  cursor: pointer; display: flex; align-items: center; gap: 12px;
+  transition: all .15s; background: var(--surface);
+}
+.urgency-item:hover { border-color: #93c5fd; }
+.urgency-item.selected { border-color: var(--accent); background: var(--accent-light); }
+.urgency-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.urgency-title { font-size: 13.5px; font-weight: 700; flex: 1; }
+.urgency-desc { font-size: 11.5px; color: var(--muted); }
+
+/* Symptom checkboxes */
+.symptom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.symptom-item {
+  border: 1.5px solid var(--border); border-radius: 9px; padding: 10px 12px;
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+  font-size: 13px; transition: all .15s; user-select: none;
+  background: var(--surface);
+}
+.symptom-item:hover { border-color: #93c5fd; }
+.symptom-item.selected { border-color: var(--accent); background: var(--accent-light); color: var(--accent-dark); font-weight: 600; }
+.symptom-check { width: 18px; height: 18px; border-radius: 5px; border: 2px solid var(--border); background: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+.symptom-item.selected .symptom-check { background: var(--accent); border-color: var(--accent); }
+.symptom-check svg { display: none; }
+.symptom-item.selected .symptom-check svg { display: block; }
+
+/* Time slots */
+.time-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.time-slot {
+  border: 1.5px solid var(--border); border-radius: 9px; padding: 10px 8px;
+  text-align: center; cursor: pointer; transition: all .15s; font-size: 13px;
+  font-weight: 600; color: var(--muted); background: var(--surface);
+}
+.time-slot:hover { border-color: #93c5fd; color: var(--text); }
+.time-slot.selected { border-color: var(--accent); background: var(--accent-light); color: var(--accent-dark); }
+.time-slot.disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+
+/* Navigation buttons */
+.nav-btns { display: flex; gap: 10px; margin-top: 24px; padding-bottom: 20px; }
+.btn-prev {
+  flex: 1; padding: 13px; border-radius: 12px; font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit; border: 1.5px solid var(--border);
+  background: var(--surface); color: var(--muted); transition: all .15s;
+}
+.btn-prev:hover { background: #f8fafc; color: var(--text); }
+.btn-next {
+  flex: 2; padding: 13px; border-radius: 12px; font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit; border: none;
+  background: var(--accent); color: #fff; transition: background .15s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-next:hover { background: var(--accent-dark); }
+.btn-next:disabled { background: #94a3b8; cursor: not-allowed; }
+
+/* Summary card */
+.summary-section { margin-bottom: 14px; }
+.summary-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 8px; }
+.summary-row { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; }
+.summary-row:last-child { border-bottom: none; }
+.summary-key { color: var(--muted); width: 80px; flex-shrink: 0; }
+.summary-val { color: var(--text); font-weight: 600; }
+.summary-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
+.summary-tag { background: #f1f5f9; color: #475569; font-size: 11.5px; padding: 3px 10px; border-radius: 99px; font-weight: 600; }
+
+/* Success screen */
+#success-screen { display: none; }
+.success-icon { width: 72px; height: 72px; border-radius: 50%; background: #dcfce7; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.copy-btn {
+  display: flex; align-items: center; gap: 6px; background: #f8fafc;
+  border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 14px;
+  font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+  color: var(--muted); transition: all .15s; width: 100%; justify-content: center;
+  margin-top: 8px;
+}
+.copy-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+/* Misc */
+.mono { font-family: 'JetBrains Mono', monospace; }
+.text-center { text-align: center; }
+.mt8 { margin-top: 8px; }
+.notice-box { background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 10px; padding: 12px 14px; font-size: 12px; color: #713f12; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- Page Header -->
+<div class="page-header">
+  <div class="header-badge">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    迪特軍 EV · 電動車專業維修
+  </div>
+  <div class="header-title">維修預約登記</div>
+  <div class="header-sub">填寫後我們將盡快與您聯繫確認維修時間</div>
+</div>
+
+<!-- Progress Bar -->
+<div class="progress-bar" id="progress-bar">
+  <div class="prog-step" onclick="goStep(1)">
+    <div class="prog-dot active" id="dot-1">1</div>
+    <span class="prog-label active" id="lbl-1">基本資料</span>
+  </div>
+  <div class="prog-line" id="line-1"></div>
+  <div class="prog-step" onclick="goStep(2)">
+    <div class="prog-dot" id="dot-2">2</div>
+    <span class="prog-label" id="lbl-2">車輛資訊</span>
+  </div>
+  <div class="prog-line" id="line-2"></div>
+  <div class="prog-step" onclick="goStep(3)">
+    <div class="prog-dot" id="dot-3">3</div>
+    <span class="prog-label" id="lbl-3">故障描述</span>
+  </div>
+  <div class="prog-line" id="line-3"></div>
+  <div class="prog-step" onclick="goStep(4)">
+    <div class="prog-dot" id="dot-4">4</div>
+    <span class="prog-label" id="lbl-4">預約時間</span>
+  </div>
+  <div class="prog-line" id="line-4"></div>
+  <div class="prog-step">
+    <div class="prog-dot" id="dot-5">5</div>
+    <span class="prog-label" id="lbl-5">確認送出</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- Step 1: Basic Info -->
+  <div class="step active" id="step-1">
+    <div class="step-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      基本資料
+    </div>
+    <div class="step-sub">請填寫您的聯絡資訊，方便我們與您確認維修細節</div>
+
+    <div class="card">
+      <div class="field">
+        <label>姓名 <span class="req">*</span></label>
+        <input type="text" id="f-name" placeholder="您的姓名">
+        <span class="field-error">請輸入您的姓名</span>
+      </div>
+      <div class="field">
+        <label>聯絡電話 <span class="req">*</span></label>
+        <input type="tel" id="f-phone" placeholder="09xxxxxxxx" inputmode="numeric">
+        <span class="field-error">請輸入有效的手機號碼</span>
+      </div>
+      <div class="field">
+        <label>LINE ID <span class="opt">選填</span></label>
+        <input type="text" id="f-line" placeholder="選填，方便傳送報價">
+      </div>
+      <div class="field">
+        <label>地址 <span class="opt">選填</span></label>
+        <input type="text" id="f-address" placeholder="選填">
+      </div>
+    </div>
+
+    <div class="notice-box">
+      <strong>隱私聲明：</strong>您填寫的資料僅供迪特軍 EV 維修服務使用，不會提供給第三方。
+    </div>
+
+    <div class="nav-btns">
+      <button class="btn-next" onclick="nextStep(1)">
+        下一步：車輛資訊
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 2: Vehicle Info -->
+  <div class="step" id="step-2">
+    <div class="step-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      車輛資訊
+    </div>
+    <div class="step-sub">請提供您的電動車資訊，協助我們預先準備零件</div>
+
+    <div class="card">
+      <div class="field">
+        <label>車輛品牌 / 型號 <span class="req">*</span></label>
+        <input type="text" id="f-model" placeholder="例如：Gogoro 2、Ai-1、DT85">
+        <span class="field-error">請輸入車輛型號</span>
+      </div>
+      <div class="field-grid2">
+        <div class="field">
+          <label>車牌號碼 <span class="opt">選填</span></label>
+          <input type="text" id="f-plate" placeholder="ABC-1234" class="mono" style="text-align:center">
+        </div>
+        <div class="field">
+          <label>車身序號 VIN <span class="opt">選填</span></label>
+          <input type="text" id="f-vin" placeholder="選填" class="mono" style="font-size:12px">
+        </div>
+      </div>
+      <div class="field-grid2">
+        <div class="field">
+          <label>規格 / 顏色 <span class="opt">選填</span></label>
+          <input type="text" id="f-specs" placeholder="例如：白色、紅框">
+        </div>
+        <div class="field">
+          <label>目前里程 (KM) <span class="opt">選填</span></label>
+          <input type="number" id="f-mileage" placeholder="0" class="mono">
+        </div>
+      </div>
+      <div class="field">
+        <label>購車日期 <span class="opt">選填，用於判斷保固</span></label>
+        <input type="date" id="f-purchase-date">
+      </div>
+    </div>
+
+    <div class="nav-btns">
+      <button class="btn-prev" onclick="prevStep(2)">← 上一步</button>
+      <button class="btn-next" onclick="nextStep(2)">
+        下一步：故障描述
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 3: Problem Description -->
+  <div class="step" id="step-3">
+    <div class="step-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      故障描述
+    </div>
+    <div class="step-sub">請選擇維修類型並描述狀況，越詳細越有助於快速診斷</div>
+
+    <!-- Repair Type -->
+    <div class="card">
+      <div class="card-title">維修類型 <span style="color:var(--danger)">*</span></div>
+      <div class="type-grid">
+        <div class="type-card selected" id="type-repair" onclick="selectType('repair')">
+          <div class="type-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          </div>
+          <div class="type-name">故障維修</div>
+          <div class="type-desc">車輛異常、無法使用</div>
+        </div>
+        <div class="type-card" id="type-regular" onclick="selectType('regular')">
+          <div class="type-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div class="type-name">定期保養</div>
+          <div class="type-desc">例行維護、保養服務</div>
+        </div>
+        <div class="type-card" id="type-battery" onclick="selectType('battery')">
+          <div class="type-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="18" height="12" rx="2" ry="2"/><line x1="23" y1="13" x2="23" y2="11"/></svg>
+          </div>
+          <div class="type-name">電池問題</div>
+          <div class="type-desc">續航異常、充電問題</div>
+        </div>
+        <div class="type-card" id="type-upgrade" onclick="selectType('upgrade')">
+          <div class="type-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>
+          </div>
+          <div class="type-name">升級改裝</div>
+          <div class="type-desc">配件升級、外觀改裝</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Symptoms -->
+    <div class="card" id="symptom-section">
+      <div class="card-title">常見症狀（可複選）</div>
+      <div class="symptom-grid" id="symptoms">
+        <div class="symptom-item" onclick="toggleSymptom(this)">
+          <div class="symptom-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          無法啟動
+        </div>
+        <div class="symptom-item" onclick="toggleSymptom(this)">
+          <div class="symptom-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          行駛中斷電
+        </div>
+        <div class="symptom-item" onclick="toggleSymptom(this)">
+          <div class="symptom-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          動力不足
+        </div>
+        <div class="symptom-item" onclick="toggleSymptom(this)">
+          <div class="symptom-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          異常聲響
+        </div>
+        <div class="symptom-item" onclick="toggleSymptom(this)">
+          <div class="symptom-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          煞車異常
+        </div>
+        <div class="symptom-item" onclick="toggleSymptom(this)">
+          <div class="symptom-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          燈光故障
+        </div>
+        <div class="symptom-item" onclick="toggleSymptom(this)">
+          <div class="symptom-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          充電異常
+        </div>
+        <div class="symptom-item" onclick="toggleSymptom(this)">
+          <div class="symptom-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          儀表板異常
+        </div>
+        <div class="symptom-item" onclick="toggleSymptom(this)">
+          <div class="symptom-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          輪胎磨損
+        </div>
+        <div class="symptom-item" onclick="toggleSymptom(this)">
+          <div class="symptom-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          續航明顯縮短
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail description -->
+    <div class="card">
+      <div class="field">
+        <label>詳細描述 <span class="req">*</span></label>
+        <textarea id="f-description" placeholder="請描述問題發生的情況、時機、持續時間等，越詳細越好…"></textarea>
+        <span class="field-hint">例如：「騎行約 5 分鐘後動力突然減弱，儀表板顯示電量異常」</span>
+        <span class="field-error">請填寫故障描述</span>
+      </div>
+    </div>
+
+    <!-- Urgency -->
+    <div class="card">
+      <div class="card-title">緊急程度</div>
+      <div class="urgency-list">
+        <div class="urgency-item selected" id="urg-normal" onclick="selectUrgency('normal')">
+          <div class="urgency-dot" style="background:#16a34a"></div>
+          <div>
+            <div class="urgency-title">一般維修</div>
+            <div class="urgency-desc">可正常騎乘，但需要維修處理</div>
+          </div>
+        </div>
+        <div class="urgency-item" id="urg-urgent" onclick="selectUrgency('urgent')">
+          <div class="urgency-dot" style="background:#d97706"></div>
+          <div>
+            <div class="urgency-title">盡快處理</div>
+            <div class="urgency-desc">影響騎乘，希望 2-3 天內處理</div>
+          </div>
+        </div>
+        <div class="urgency-item" id="urg-asap" onclick="selectUrgency('asap')">
+          <div class="urgency-dot" style="background:#ef4444"></div>
+          <div>
+            <div class="urgency-title">緊急！無法騎乘</div>
+            <div class="urgency-desc">車輛完全無法使用，需要立即處理</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-btns">
+      <button class="btn-prev" onclick="prevStep(3)">← 上一步</button>
+      <button class="btn-next" onclick="nextStep(3)">
+        下一步：預約時間
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 4: Appointment -->
+  <div class="step" id="step-4">
+    <div class="step-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      預約時間
+    </div>
+    <div class="step-sub">選擇希望送修的日期與時段，我們會再與您確認</div>
+
+    <div class="card">
+      <div class="field">
+        <label>希望送修日期 <span class="req">*</span></label>
+        <input type="date" id="f-appt-date">
+        <span class="field-error">請選擇日期</span>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <label>偏好時段</label>
+        <div class="time-grid" id="time-grid">
+          <div class="time-slot selected" onclick="selectTime(this)" data-t="morning">上午<br><span style="font-size:11px;font-weight:400">09:00–12:00</span></div>
+          <div class="time-slot" onclick="selectTime(this)" data-t="afternoon">下午<br><span style="font-size:11px;font-weight:400">13:00–17:00</span></div>
+          <div class="time-slot" onclick="selectTime(this)" data-t="evening">傍晚<br><span style="font-size:11px;font-weight:400">17:00–19:00</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label>附加說明 <span class="opt">選填</span></label>
+        <textarea id="f-appt-note" placeholder="例如：需要拖車服務、需要代步車、特殊停車位置說明…" style="min-height:70px"></textarea>
+      </div>
+      <div class="field" style="margin-top:4px">
+        <label>如何得知迪特軍 EV？<span class="opt">選填</span></label>
+        <select id="f-source">
+          <option value="">請選擇</option>
+          <option value="friend">朋友推薦</option>
+          <option value="google">Google 搜尋</option>
+          <option value="fb">Facebook</option>
+          <option value="ig">Instagram</option>
+          <option value="line">LINE</option>
+          <option value="repeat">回頭客</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="nav-btns">
+      <button class="btn-prev" onclick="prevStep(4)">← 上一步</button>
+      <button class="btn-next" onclick="nextStep(4)">
+        下一步：確認資料
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 5: Confirm & Submit -->
+  <div class="step" id="step-5">
+    <div class="step-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      確認資料
+    </div>
+    <div class="step-sub">請確認以下資料正確後送出</div>
+
+    <div class="card">
+      <div class="summary-label">客戶資料</div>
+      <div class="summary-row"><span class="summary-key">姓名</span><span class="summary-val" id="s-name">—</span></div>
+      <div class="summary-row"><span class="summary-key">電話</span><span class="summary-val mono" id="s-phone">—</span></div>
+      <div class="summary-row" id="s-line-row" style="display:none"><span class="summary-key">LINE</span><span class="summary-val" id="s-line">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="summary-label">車輛資訊</div>
+      <div class="summary-row"><span class="summary-key">車型</span><span class="summary-val" id="s-model">—</span></div>
+      <div class="summary-row" id="s-plate-row" style="display:none"><span class="summary-key">車牌</span><span class="summary-val mono" id="s-plate">—</span></div>
+      <div class="summary-row" id="s-mileage-row" style="display:none"><span class="summary-key">里程</span><span class="summary-val mono" id="s-mileage">— km</span></div>
+    </div>
+
+    <div class="card">
+      <div class="summary-label">維修需求</div>
+      <div class="summary-row"><span class="summary-key">類型</span><span class="summary-val" id="s-type">—</span></div>
+      <div class="summary-row" id="s-symptoms-row" style="display:none"><span class="summary-key">症狀</span>
+        <div class="summary-tags" id="s-symptoms"></div>
+      </div>
+      <div class="summary-row"><span class="summary-key">緊急度</span><span class="summary-val" id="s-urgency">—</span></div>
+      <div class="summary-row"><span class="summary-key">描述</span><span class="summary-val" id="s-desc" style="font-size:12.5px;line-height:1.5">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="summary-label">預約時間</div>
+      <div class="summary-row"><span class="summary-key">日期</span><span class="summary-val" id="s-appt-date">—</span></div>
+      <div class="summary-row"><span class="summary-key">時段</span><span class="summary-val" id="s-appt-time">—</span></div>
+    </div>
+
+    <div class="notice-box" style="margin-bottom:16px">
+      送出後，系統將自動通知迪特軍 EV，我們會在 24 小時內確認預約時間。
+    </div>
+
+    <div class="nav-btns">
+      <button class="btn-prev" onclick="prevStep(5)">← 修改</button>
+      <button class="btn-next" id="submit-btn" onclick="submitForm()" style="background:#16a34a">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        確認送出維修登記
+      </button>
+    </div>
+  </div>
+
+  <!-- Success Screen -->
+  <div id="success-screen" style="display:none;text-align:center;padding:40px 0 60px;animation:fadeUp .3s ease both">
+    <div class="success-icon">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h2 style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:8px">登記成功！</h2>
+    <p style="font-size:13.5px;color:#64748b;margin-bottom:6px">迪特軍 EV 已收到您的維修需求</p>
+    <p style="font-size:13px;color:#64748b;margin-bottom:28px">我們將在 24 小時內與您聯繫確認時間</p>
+
+    <div class="card" style="text-align:left;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">您的登記單號</div>
+      <div id="success-order-no" style="font-size:22px;font-weight:900;font-family:'JetBrains Mono',monospace;color:#2563eb;letter-spacing:.06em"></div>
+      <div style="font-size:11.5px;color:#94a3b8;margin-top:4px">請截圖保存此單號，方便後續查詢</div>
+    </div>
+
+    <div style="font-size:12.5px;color:#64748b;margin-bottom:12px">或複製連結傳送給迪特軍 EV 直接匯入系統</div>
+    <button class="copy-btn" id="copy-data-btn" onclick="copyImportLink()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      複製匯入連結（傳給迪特軍 EV）
+    </button>
+  </div>
+
+</div><!-- /content -->
+
+<script>
+let currentStep = 1;
+let selectedType = 'repair';
+let selectedUrgency = 'normal';
+let selectedTime = 'morning';
+let importLink = '';
+
+const typeLabels = { repair:'故障維修', regular:'定期保養', battery:'電池問題', upgrade:'升級改裝' };
+const urgencyLabels = { normal:'一般維修', urgent:'盡快處理', asap:'緊急！無法騎乘' };
+const timeLabels = { morning:'上午 09:00–12:00', afternoon:'下午 13:00–17:00', evening:'傍晚 17:00–19:00' };
+
+// ── Step navigation ──────────────────────────────────
+function goStep(n) {
+  if(n > currentStep) return; // can only go back freely
+  currentStep = n;
+  renderStep();
+}
+
+function nextStep(from) {
+  if(!validateStep(from)) return;
+  if(from === 5) { submitForm(); return; }
+  if(from === 4) buildSummary();
+  currentStep = from + 1;
+  renderStep();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function prevStep(from) {
+  currentStep = from - 1;
+  renderStep();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function renderStep() {
+  for(let i=1; i<=5; i++) {
+    document.getElementById('step-'+i).classList.toggle('active', i===currentStep);
+    const dot = document.getElementById('dot-'+i);
+    const lbl = document.getElementById('lbl-'+i);
+    if(i < currentStep) { dot.className='prog-dot done'; dot.innerHTML=checkSvg(); }
+    else if(i===currentStep) { dot.className='prog-dot active'; dot.textContent=i; }
+    else { dot.className='prog-dot'; dot.textContent=i; }
+    lbl.className = 'prog-label' + (i===currentStep?' active':'');
+    if(i<5) {
+      const line = document.getElementById('line-'+i);
+      if(line) line.className = 'prog-line' + (i<currentStep?' done':'');
+    }
+  }
+}
+
+function checkSvg() {
+  return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+}
+
+// ── Validation ───────────────────────────────────────
+function validateStep(step) {
+  let ok = true;
+  const clear = id => { const el=document.getElementById(id); if(el){el.classList.remove('error');} };
+  const err   = id => { const el=document.getElementById(id); if(el){el.classList.add('error');} ok=false; };
+
+  if(step===1) {
+    const name  = v('f-name');
+    const phone = v('f-phone');
+    if(!name.trim()) err('f-name'); else clear('f-name');
+    if(!phone.trim() || !/^0\d{8,9}$/.test(phone.replace(/\s|-/g,''))) err('f-phone'); else clear('f-phone');
+  }
+  if(step===2) {
+    if(!v('f-model').trim()) err('f-model'); else clear('f-model');
+  }
+  if(step===3) {
+    if(!v('f-description').trim()) err('f-description'); else clear('f-description');
+  }
+  if(step===4) {
+    const d = v('f-appt-date');
+    if(!d) err('f-appt-date'); else clear('f-appt-date');
+  }
+  return ok;
+}
+
+// ── Selectors ────────────────────────────────────────
+function selectType(t) {
+  selectedType = t;
+  ['repair','regular','battery','upgrade'].forEach(x => {
+    document.getElementById('type-'+x).classList.toggle('selected', x===t);
+  });
+}
+
+function selectUrgency(u) {
+  selectedUrgency = u;
+  ['normal','urgent','asap'].forEach(x => {
+    document.getElementById('urg-'+x).classList.toggle('selected', x===u);
+  });
+}
+
+function selectTime(el) {
+  document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedTime = el.dataset.t;
+}
+
+function toggleSymptom(el) { el.classList.toggle('selected'); }
+
+// ── Summary ──────────────────────────────────────────
+function buildSummary() {
+  const setText = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v||'—'; };
+  setText('s-name',  v('f-name'));
+  setText('s-phone', v('f-phone'));
+  setText('s-model', v('f-model'));
+  setText('s-type',  typeLabels[selectedType]);
+  setText('s-urgency', urgencyLabels[selectedUrgency]);
+  setText('s-desc',  v('f-description'));
+  setText('s-appt-date', v('f-appt-date') ? new Date(v('f-appt-date')).toLocaleDateString('zh-TW') : '—');
+  setText('s-appt-time', timeLabels[selectedTime]);
+
+  const line = v('f-line');
+  setRow('s-line-row', !!line); setText('s-line', line);
+  const plate = v('f-plate');
+  setRow('s-plate-row', !!plate); setText('s-plate', plate);
+  const km = v('f-mileage');
+  setRow('s-mileage-row', !!km); setText('s-mileage', km ? km+' km' : '');
+
+  const syms = [...document.querySelectorAll('.symptom-item.selected')].map(el => el.textContent.trim());
+  const symEl = document.getElementById('s-symptoms');
+  setRow('s-symptoms-row', syms.length > 0);
+  symEl.innerHTML = syms.map(s=>`<span class="summary-tag">${s}</span>`).join('');
+}
+
+function setRow(id, show) { const el=document.getElementById(id); if(el) el.style.display=show?'flex':'none'; }
+
+// ── Submit ───────────────────────────────────────────
+function submitForm() {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = '送出中…';
+
+  const symptoms = [...document.querySelectorAll('.symptom-item.selected')].map(el => el.textContent.trim());
+  const orderNo = 'MF-' + Date.now().toString(36).toUpperCase().slice(-8);
+
+  const payload = {
+    orderNo,
+    submittedAt: new Date().toISOString(),
+    customer: {
+      name:    v('f-name'),
+      phone:   v('f-phone'),
+      line:    v('f-line'),
+      address: v('f-address'),
+    },
+    vehicle: {
+      model:        v('f-model'),
+      plate:        v('f-plate'),
+      vin:          v('f-vin'),
+      specs:        v('f-specs'),
+      mileage:      v('f-mileage'),
+      purchaseDate: v('f-purchase-date'),
+    },
+    repair: {
+      type:        selectedType,
+      urgency:     selectedUrgency,
+      symptoms:    symptoms,
+      description: v('f-description'),
+    },
+    appointment: {
+      date:   v('f-appt-date'),
+      time:   selectedTime,
+      note:   v('f-appt-note'),
+      source: v('f-source'),
+    }
+  };
+
+  // Build import link for CRM
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  const base = window.location.href.split('/').slice(0,-1).join('/');
+  importLink = `${base}/diter_crm_v3.html#import=${encoded}`;
+
+  document.getElementById('success-order-no').textContent = orderNo;
+  document.getElementById('step-5').style.display = 'none';
+  document.getElementById('success-screen').style.display = 'block';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function copyImportLink() {
+  navigator.clipboard.writeText(importLink).then(() => {
+    const btn = document.getElementById('copy-data-btn');
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 已複製！`;
+    btn.style.borderColor = '#16a34a'; btn.style.color = '#16a34a';
+    setTimeout(() => {
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 複製匯入連結（傳給迪特軍 EV）`;
+      btn.style.borderColor=''; btn.style.color='';
+    }, 2500);
+  }).catch(() => {
+    prompt('請複製以下連結：', importLink);
+  });
+}
+
+// ── Helpers ──────────────────────────────────────────
+const v = id => document.getElementById(id)?.value || '';
+
+// Set min date for appointment to tomorrow
+const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+document.getElementById('f-appt-date').min = tomorrow.toISOString().split('T')[0];
+</script>
+</body>
+</html>
