@@ -215,6 +215,7 @@ body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: va
 .text-center { text-align: center; }
 .mt8 { margin-top: 8px; }
 .notice-box { background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 10px; padding: 12px 14px; font-size: 12px; color: #713f12; line-height: 1.6; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -596,20 +597,23 @@ body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: va
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <h2 style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:8px">登記成功！</h2>
-    <p style="font-size:13.5px;color:#64748b;margin-bottom:6px">迪特軍 EV 已收到您的維修需求</p>
-    <p style="font-size:13px;color:#64748b;margin-bottom:28px">我們將在 24 小時內與您聯繫確認時間</p>
+
+    <div id="success-status-msg" style="margin:0 0 20px"></div>
 
     <div class="card" style="text-align:left;margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">您的登記單號</div>
-      <div id="success-order-no" style="font-size:22px;font-weight:900;font-family:'JetBrains Mono',monospace;color:#2563eb;letter-spacing:.06em"></div>
-      <div style="font-size:11.5px;color:#94a3b8;margin-top:4px">請截圖保存此單號，方便後續查詢</div>
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">您的登記單號</div>
+      <div id="success-order-no" style="font-size:24px;font-weight:900;font-family:'JetBrains Mono',monospace;color:#2563eb;letter-spacing:.06em"></div>
+      <div style="font-size:11.5px;color:#94a3b8;margin-top:4px">請截圖保存此單號，方便後續查詢維修進度</div>
     </div>
 
-    <div style="font-size:12.5px;color:#64748b;margin-bottom:12px">或複製連結傳送給迪特軍 EV 直接匯入系統</div>
-    <button class="copy-btn" id="copy-data-btn" onclick="copyImportLink()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      複製匯入連結（傳給迪特軍 EV）
-    </button>
+    <!-- 備援區塊：只在 API 失敗時顯示 -->
+    <div id="success-offline-block" style="display:none;margin-top:8px">
+      <div style="font-size:12px;color:#64748b;margin-bottom:8px">如 24 小時內未收到聯繫，請將以下連結傳給迪特軍 EV：</div>
+      <button class="copy-btn" id="fallback-copy-btn" onclick="copyFallbackLink()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        複製備援連結
+      </button>
+    </div>
   </div>
 
 </div><!-- /content -->
@@ -742,68 +746,124 @@ function buildSummary() {
 
 function setRow(id, show) { const el=document.getElementById(id); if(el) el.style.display=show?'flex':'none'; }
 
+// ── API 設定 ─────────────────────────────────────────
+// 系統會自動抓取，也可手動設定
+const API_URL = 'https://script.google.com/macros/s/AKfycbwoMdmxz7tkgrKTvHx2AnO2lPookVs5m36fopxTqpbW1RKKJcIpgJwEHRLyvzOR34Kq/exec';
+
+async function callAPI(payload) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  return await res.json();
+}
+
 // ── Submit ───────────────────────────────────────────
-function submitForm() {
+async function submitForm() {
   const btn = document.getElementById('submit-btn');
-  btn.disabled = true; btn.textContent = '送出中…';
+  btn.disabled = true;
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 送出中，請稍候…`;
 
   const symptoms = [...document.querySelectorAll('.symptom-item.selected')].map(el => el.textContent.trim());
-  const orderNo = 'MF-' + Date.now().toString(36).toUpperCase().slice(-8);
+  const orderNo  = 'MF-' + Date.now().toString(36).toUpperCase().slice(-8);
 
   const payload = {
-    orderNo,
-    submittedAt: new Date().toISOString(),
-    customer: {
-      name:    v('f-name'),
-      phone:   v('f-phone'),
-      line:    v('f-line'),
-      address: v('f-address'),
-    },
-    vehicle: {
-      model:        v('f-model'),
-      plate:        v('f-plate'),
-      vin:          v('f-vin'),
-      specs:        v('f-specs'),
-      mileage:      v('f-mileage'),
-      purchaseDate: v('f-purchase-date'),
-    },
-    repair: {
-      type:        selectedType,
-      urgency:     selectedUrgency,
-      symptoms:    symptoms,
-      description: v('f-description'),
-    },
-    appointment: {
-      date:   v('f-appt-date'),
-      time:   selectedTime,
-      note:   v('f-appt-note'),
-      source: v('f-source'),
+    action: 'intake',
+    data: {
+      orderNo,
+      submittedAt: new Date().toISOString(),
+      customer: {
+        name:    v('f-name'),
+        phone:   v('f-phone'),
+        line:    v('f-line'),
+        address: v('f-address'),
+      },
+      vehicle: {
+        model:        v('f-model'),
+        plate:        v('f-plate'),
+        vin:          v('f-vin'),
+        specs:        v('f-specs'),
+        mileage:      v('f-mileage'),
+        purchaseDate: v('f-purchase-date'),
+      },
+      repair: {
+        type:        selectedType,
+        urgency:     selectedUrgency,
+        symptoms:    symptoms,
+        description: v('f-description'),
+      },
+      appointment: {
+        date:   v('f-appt-date'),
+        time:   selectedTime,
+        note:   v('f-appt-note'),
+        source: v('f-source'),
+      }
     }
   };
 
-  // Build import link for CRM
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-  const base = window.location.href.split('/').slice(0,-1).join('/');
-  importLink = `${base}/diter_crm_v3.html#import=${encoded}`;
-
-  document.getElementById('success-order-no').textContent = orderNo;
-  document.getElementById('step-5').style.display = 'none';
-  document.getElementById('success-screen').style.display = 'block';
-  window.scrollTo({top:0, behavior:'smooth'});
+  try {
+    const result = await callAPI(payload);
+    if (result.status === 'success') {
+      // 送出成功
+      showSuccess(orderNo, true);
+    } else {
+      throw new Error(result.message || '伺服器回應錯誤');
+    }
+  } catch(err) {
+    console.warn('API 送出失敗，改用離線模式：', err);
+    // API 失敗時降級為離線模式（本地儲存 + 顯示成功畫面）
+    showSuccess(orderNo, false, payload.data);
+  }
 }
 
-function copyImportLink() {
-  navigator.clipboard.writeText(importLink).then(() => {
-    const btn = document.getElementById('copy-data-btn');
-    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 已複製！`;
-    btn.style.borderColor = '#16a34a'; btn.style.color = '#16a34a';
-    setTimeout(() => {
-      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 複製匯入連結（傳給迪特軍 EV）`;
-      btn.style.borderColor=''; btn.style.color='';
-    }, 2500);
-  }).catch(() => {
-    prompt('請複製以下連結：', importLink);
-  });
+function showSuccess(orderNo, online, offlineData) {
+  document.getElementById('success-order-no').textContent = orderNo;
+
+  const statusEl = document.getElementById('success-status-msg');
+  const offlineEl = document.getElementById('success-offline-block');
+
+  if (online) {
+    statusEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;justify-content:center;color:#15803d;font-size:13.5px;font-weight:600">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        資料已成功送達迪特軍 EV 系統
+      </div>
+      <p style="font-size:12.5px;color:#64748b;margin-top:6px">我們將在 24 小時內與您聯繫確認時間，請保持電話暢通。</p>`;
+    if (offlineEl) offlineEl.style.display = 'none';
+  } else {
+    statusEl.innerHTML = `
+      <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#7c2d12;text-align:left">
+        <strong>⚠ 網路暫時無法連線</strong><br>
+        您的資料已暫存。請截圖保存單號，並將下方連結傳給迪特軍 EV。
+      </div>`;
+    // 儲存到 localStorage 作為備援
+    if (offlineData) {
+      const saved = JSON.parse(localStorage.getItem('diter_offline_intake')||'[]');
+      saved.push(offlineData);
+      localStorage.setItem('diter_offline_intake', JSON.stringify(saved));
+      // 建立手動匯入連結作為備援
+      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(offlineData))));
+      const base = window.location.href.split('/').slice(0,-1).join('/');
+      window._fallbackLink = `${base}/diter_crm_v3.html#import=${encoded}`;
+      if (offlineEl) offlineEl.style.display = '';
+    }
+  }
+
+  document.getElementById('step-5').style.display = 'none';
+  document.getElementById('success-screen').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function copyFallbackLink() {
+  const link = window._fallbackLink || '';
+  navigator.clipboard.writeText(link).then(() => {
+    const btn = document.getElementById('fallback-copy-btn');
+    btn.textContent = '✓ 已複製！';
+    btn.style.color = '#16a34a';
+    setTimeout(() => { btn.textContent = '複製備援連結'; btn.style.color=''; }, 2500);
+  }).catch(() => { prompt('請複製此連結：', link); });
 }
 
 // ── Helpers ──────────────────────────────────────────

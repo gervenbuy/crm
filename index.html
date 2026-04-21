@@ -740,21 +740,20 @@ select.form-input { cursor:pointer; }
           <h3 style="font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;color:#78350f">
             <i data-lucide="share-2" width="14" height="14"></i> 傳送問卷給客戶
           </h3>
-          <p style="font-size:12px;color:#92400e;margin-bottom:12px;line-height:1.6">將維修登記問卷連結傳給客戶，客戶填完後傳回連結，你一鍵匯入即可建立客戶 + 工單。</p>
+          <p style="font-size:12px;color:#92400e;margin-bottom:12px;line-height:1.6">將維修登記問卷連結傳給客戶，客戶填完後資料<strong>自動送達</strong>，無需回傳任何東西。</p>
           <button class="btn btn-dark btn-sm" onclick="App.copyIntakeFormLink()" style="width:100%;justify-content:center;padding:9px;background:#92400e;border-color:#92400e">
             <i data-lucide="copy" width="13" height="13"></i> 複製問卷連結
           </button>
         </div>
-        <!-- Paste import link card -->
+        <!-- Refresh card -->
         <div class="card" style="border:2px solid var(--accent);background:#eff6ff">
           <h3 style="font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;color:#1e40af">
-            <i data-lucide="download" width="14" height="14"></i> 貼入客戶回傳連結
+            <i data-lucide="refresh-cw" width="14" height="14"></i> 同步最新問卷
           </h3>
-          <p style="font-size:12px;color:#1d4ed8;margin-bottom:10px;line-height:1.6">客戶填完問卷後會收到一組連結，貼在下方即可自動解析並匯入。</p>
-          <div style="display:flex;gap:6px">
-            <input class="form-input" id="intake-link-input" placeholder="貼入 #import=... 的連結" style="font-size:11px;flex:1;min-width:0">
-            <button class="btn btn-primary btn-sm" onclick="App.parseIntakeLink()" style="flex-shrink:0;padding:7px 12px">解析</button>
-          </div>
+          <p style="font-size:12px;color:#1d4ed8;margin-bottom:12px;line-height:1.6">客戶填完後資料會進入 Google Sheet，點下方按鈕取得最新問卷清單。</p>
+          <button class="btn btn-primary btn-sm" onclick="App.fetchIntakeFromCloud()" style="width:100%;justify-content:center;padding:9px">
+            <i data-lucide="refresh-cw" width="13" height="13"></i> 重新整理問卷清單
+          </button>
         </div>
       </div>
 
@@ -1863,7 +1862,7 @@ const App = {
   _intakeData: null,
 
   initIntake() {
-    this.renderIntakePending();
+    this.fetchIntakeFromCloud();
     // Check URL hash for auto-import
     const hash = window.location.hash;
     if(hash.startsWith('#import=')) {
@@ -1872,6 +1871,25 @@ const App = {
       setTimeout(() => this.parseIntakeLinkData(encoded), 400);
     }
     lucide.createIcons();
+  },
+
+  async fetchIntakeFromCloud() {
+    const list = document.getElementById('intake-list');
+    const countEl = document.getElementById('intake-count');
+    if(list) list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px">從雲端讀取問卷中...</div>';
+
+    try {
+      const res = await API.call('readIntake');
+      if(res?.status === 'success' && res.data) {
+        this._intakePending = res.data;
+        this.renderIntakePending();
+        return;
+      }
+    } catch(e) { console.warn('readIntake error', e); }
+
+    // fallback: show empty
+    this._intakePending = [];
+    this.renderIntakePending();
   },
 
   copyIntakeFormLink() {
@@ -1939,68 +1957,58 @@ const App = {
   confirmIntakeImport() {
     const data = this._intakeData;
     if(!data) return;
-    const c = data.customer||{}, ve = data.vehicle||{}, r = data.repair||{}, a = data.appointment||{};
+    const c=data.customer||{}, ve=data.vehicle||{}, r=data.repair||{}, a=data.appointment||{};
 
-    // Create customer
     const custId = gid();
     const customer = {
-      id: custId,
-      name:         c.name||'未知客戶',
-      phone:        c.phone||'',
-      address:      c.address||'',
-      notes:        c.line ? 'LINE: '+c.line : '',
-      category:     'repair',
-      model:        ve.model||'',
-      plate:        ve.plate||'',
-      vin:          ve.vin||'',
-      specs:        ve.specs||'',
-      purchaseDate: ve.purchaseDate||'',
-      warrantyDays: '365',
-      price:        ''
+      id:custId, name:c.name||'未知客戶', phone:c.phone||'',
+      address:c.address||'', notes:c.line?'LINE: '+c.line:'',
+      category:'repair', model:ve.model||'', plate:ve.plate||'',
+      vin:ve.vin||'', specs:ve.specs||'', purchaseDate:ve.purchaseDate||'',
+      warrantyDays:'365', price:''
     };
 
-    // Check for duplicate phone
-    const existing = Store.db.customers.find(x => x.phone && x.phone === c.phone);
+    const existing = Store.db.customers.find(x => x.phone && x.phone===c.phone);
     let targetId = custId;
     if(existing) {
       targetId = existing.id;
-      toast(`⚠ 已有相同電話的客戶「${existing.name}」，工單將建立在現有客戶下`);
+      toast(`⚠ 電話 ${c.phone} 已有客戶「${existing.name}」，工單建立在現有客戶下`);
     } else {
       Store.db.customers.push(customer);
       Store.push('Customers', customer);
     }
 
-    // Urgency → status mapping
     const statusMap = { normal:'pending', urgent:'pending', asap:'fixing' };
-
-    // Build repair description with symptoms
-    const sympLine = r.symptoms?.length ? `【症狀】${r.symptoms.join('、')}\n` : '';
-    const urgLine  = r.urgency==='asap' ? '⚠ 緊急：客戶表示無法騎乘\n' : r.urgency==='urgent' ? '⚡ 希望盡快處理\n' : '';
-    const apptLine = a.date ? `【預約】${new Date(a.date).toLocaleDateString('zh-TW')} ${a.time==='morning'?'上午':a.time==='afternoon'?'下午':'傍晚'}\n` : '';
-    const noteLine = a.note ? `【備註】${a.note}` : '';
-    const fullDesc = urgLine + sympLine + (r.description||'') + '\n' + apptLine + noteLine;
+    const symptoms = Array.isArray(r.symptoms) ? r.symptoms : (r.symptoms||'').split('、').filter(Boolean);
+    const sympLine = symptoms.length?`【症狀】${symptoms.join('、')}\n`:'';
+    const urgLine  = r.urgency==='asap'?'⚠ 緊急：客戶表示無法騎乘\n':r.urgency==='urgent'?'⚡ 希望盡快處理\n':'';
+    const apptLine = a.date?`【預約】${new Date(a.date).toLocaleDateString('zh-TW')} ${a.time==='morning'?'上午':a.time==='afternoon'?'下午':'傍晚'}\n`:'';
+    const noteLine = a.note?`【備註】${a.note}`:'';
 
     const repair = {
-      id:          gid(),
-      customerId:  targetId,
-      date:        data.submittedAt || new Date().toISOString(),
-      type:        r.type==='battery' ? 'battery' : r.type==='regular' ? 'regular' : 'repair',
-      status:      statusMap[r.urgency]||'pending',
-      mileage:     ve.mileage||'',
-      description: fullDesc.trim(),
-      note:        `來源：客戶維修問卷 ${data.orderNo||''}`,
-      partsCost:   0, laborCost: 0, totalCost: 0
+      id:gid(), customerId:targetId,
+      date:data.submittedAt||new Date().toISOString(),
+      type:r.type==='battery'?'battery':r.type==='regular'?'regular':'repair',
+      status:statusMap[r.urgency]||'pending',
+      mileage:ve.mileage||'',
+      description:(urgLine+sympLine+(r.description||'')+'\n'+apptLine+noteLine).trim(),
+      note:`來源：客戶維修問卷 ${data.orderNo||''}`,
+      partsCost:0, laborCost:0, totalCost:0
     };
 
     Store.db.repairs.push(repair);
     Store.push('Repairs', repair);
     Store.save();
 
-    // Store in pending list with status
-    this._intakePending.push({ ...data, _imported: true, _importedAt: new Date().toISOString() });
+    // Mark as imported in Google Sheet
+    if(data.orderNo) {
+      API.call('markIntake', { orderId:data.orderNo, status:'imported' });
+    }
+    // Update local list
+    const idx = this._intakePending.findIndex(i => i.orderId===data.orderNo);
+    if(idx>=0) this._intakePending[idx].status='imported';
 
     this.closeModal('modal-intake');
-    document.getElementById('intake-link-input').value = '';
     this._intakeData = null;
     this.updateKPIs();
     this.renderIntakePending();
@@ -2018,38 +2026,92 @@ const App = {
     if(!list) return;
 
     const items = this._intakePending;
-    if(countEl) countEl.textContent = items.length + ' 筆';
+    const newCount = items.filter(i => i.status==='new').length;
+    if(countEl) countEl.textContent = items.length+' 筆';
 
     const badge = document.getElementById('badge-intake');
-    const pending = items.filter(i=>!i._imported).length;
-    if(badge) { badge.textContent = pending; badge.style.display = pending>0?'':'none'; }
+    if(badge) { badge.textContent=newCount; badge.style.display=newCount>0?'':'none'; }
 
     if(!items.length) {
-      list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px">尚無待處理問卷<br><span style="font-size:11px;margin-top:4px;display:block">客戶填完問卷後，貼入連結即可在此查看</span></div>';
+      list.innerHTML = '<div style="text-align:center;padding:36px;color:var(--muted);font-size:13px">尚無問卷資料<br><span style="font-size:11px;margin-top:4px;display:block">客戶填完問卷後會自動出現在此，點「重新整理」同步</span></div>';
       return;
     }
 
     const urgColor = {normal:'#16a34a',urgent:'#d97706',asap:'#ef4444'};
-    list.innerHTML = items.slice().reverse().map(item => {
-      const c = item.customer||{}, r = item.repair||{}, a = item.appointment||{};
-      const uCol = urgColor[r.urgency]||'#64748b';
-      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border)">
-        <div style="width:8px;height:8px;border-radius:50%;background:${uCol};flex-shrink:0"></div>
+    const typeMap  = {repair:'故障維修',regular:'定期保養',battery:'電池問題',upgrade:'升級改裝'};
+
+    list.innerHTML = [...items].reverse().map(item => {
+      const uCol = urgColor[item.urgency]||'#64748b';
+      const isNew = item.status==='new';
+      const typeLabel = typeMap[item.repairType]||item.repairType||'—';
+      const desc = (item.description||'').substring(0,38);
+      const apptStr = item.apptDate ? new Date(item.apptDate).toLocaleDateString('zh-TW') : '';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--border);${isNew?'background:#fffbeb':''}">
+        <div style="width:9px;height:9px;border-radius:50%;background:${uCol};flex-shrink:0;${isNew?'box-shadow:0 0 0 3px rgba(245,158,11,.2)':''}"></div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13.5px">${c.name||'—'} <span style="font-size:11px;color:var(--muted);font-weight:400">${c.phone||''}</span></div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px">${item.vehicle?.model||'—'} · ${r.description?.substring(0,40)||''}…</div>
+          <div style="font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px">
+            ${item.name||'—'}
+            ${isNew?'<span style="font-size:10px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:99px;padding:1px 7px;font-weight:700">NEW</span>':''}
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${item.model||'—'} · ${typeLabel}${desc?' · '+desc+'…':''}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${item.phone||''} ${apptStr?'· 預約 '+apptStr:''}</div>
         </div>
-        <div style="text-align:right;flex-shrink:0">
-          ${item._imported
-            ? '<span style="font-size:11px;background:#f0fdf4;color:#16a34a;border:1px solid #86efac;border-radius:99px;padding:2px 8px;font-weight:700">已匯入</span>'
-            : '<span style="font-size:11px;background:#fffbeb;color:#b45309;border:1px solid #fcd34d;border-radius:99px;padding:2px 8px;font-weight:700">待處理</span>'
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+          ${isNew
+            ? `<button class="btn btn-primary btn-sm" onclick="App.openIntakeItem('${item.orderId}')" style="font-size:11px;padding:5px 10px"><i data-lucide="check" width="12" height="12"></i> 建立工單</button>`
+            : `<span style="font-size:11px;background:#f0fdf4;color:#16a34a;border:1px solid #86efac;border-radius:99px;padding:2px 8px;font-weight:700">已匯入</span>`
           }
-          <div style="font-size:10px;color:var(--muted);margin-top:3px">${item.orderNo||''}</div>
+          <div style="font-size:10px;color:var(--muted)">${item.orderId||''}</div>
         </div>
       </div>`;
     }).join('');
 
     lucide.createIcons();
+  },
+
+  openIntakeItem(orderId) {
+    const item = this._intakePending.find(i => i.orderId===orderId);
+    if(!item) return;
+    // Convert flat Google Sheet row → nested structure
+    this._intakeData = {
+      orderNo: item.orderId,
+      submittedAt: item.submittedAt,
+      customer:    { name:item.name, phone:item.phone, line:item.line, address:item.address },
+      vehicle:     { model:item.model, plate:item.plate, vin:item.vin, specs:item.specs, mileage:item.mileage, purchaseDate:item.purchaseDate },
+      repair:      { type:item.repairType, urgency:item.urgency, symptoms:item.symptoms?item.symptoms.split('、').filter(Boolean):[], description:item.description },
+      appointment: { date:item.apptDate, time:item.apptTime, note:item.apptNote, source:item.source }
+    };
+    this._showIntakePreview(this._intakeData);
+  },
+
+  _showIntakePreview(data) {
+    const typeMap = {repair:'故障維修',regular:'定期保養',battery:'電池問題',upgrade:'升級改裝'};
+    const urgMap  = {normal:'一般維修',urgent:'盡快處理',asap:'緊急！無法騎乘'};
+    const timeMap = {morning:'上午 09:00–12:00',afternoon:'下午 13:00–17:00',evening:'傍晚 17:00–19:00'};
+    const row = (k,v) => v?`<div style="display:flex;gap:8px"><span style="color:var(--muted);width:64px;flex-shrink:0">${k}</span><span style="font-weight:600;color:var(--text)">${v}</span></div>`:'';
+    const c=data.customer||{}, ve=data.vehicle||{}, r=data.repair||{}, a=data.appointment||{};
+
+    document.getElementById('intake-preview-customer').innerHTML =
+      row('姓名',c.name)+row('電話',c.phone)+row('LINE',c.line)+row('地址',c.address)||'<span style="color:var(--muted)">—</span>';
+
+    document.getElementById('intake-preview-vehicle').innerHTML =
+      row('車型',ve.model)+row('車牌',ve.plate)+row('VIN',ve.vin)+
+      row('規格',ve.specs)+row('里程',ve.mileage?ve.mileage+' km':'')+
+      row('購車日',ve.purchaseDate?new Date(ve.purchaseDate).toLocaleDateString('zh-TW'):'')||'<span style="color:var(--muted)">—</span>';
+
+    const symptoms = Array.isArray(r.symptoms)?r.symptoms:(r.symptoms||'').split('、').filter(Boolean);
+    const symsHtml = symptoms.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">${symptoms.map(s=>`<span style="background:#f1f5f9;color:#475569;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600">${s}</span>`).join('')}</div>`:'';
+
+    document.getElementById('intake-preview-repair').innerHTML =
+      row('類型',typeMap[r.type]||r.type)+row('緊急度',urgMap[r.urgency]||r.urgency)+
+      (symsHtml?`<div style="display:flex;gap:8px"><span style="color:var(--muted);width:64px;flex-shrink:0">症狀</span>${symsHtml}</div>`:'')+
+      (r.description?`<div style="margin-top:4px;font-size:12.5px;color:var(--text);line-height:1.6;background:#f8fafc;border-radius:6px;padding:8px 10px">${r.description}</div>`:'');
+
+    document.getElementById('intake-preview-appt').innerHTML =
+      row('日期',a.date?new Date(a.date).toLocaleDateString('zh-TW'):'')+
+      row('時段',timeMap[a.time]||a.time)+row('備註',a.note)+row('單號',data.orderNo);
+
+    this.openModal('modal-intake');
   },
 
   // ---- Warranty ----
