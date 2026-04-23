@@ -1,0 +1,2620 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>迪特軍 EV 維修管理系統</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sidebar: #0c1220;
+  --sidebar-hover: #1a2540;
+  --accent: #3b82f6;
+  --accent-dark: #2563eb;
+  --surface: #ffffff;
+  --bg: #f0f2f7;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
+}
+* { box-sizing: border-box; }
+body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); }
+body:not(.sign-mode) { overflow: hidden; height: 100vh; }
+body.sign-mode { overflow: auto; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+
+/* Loading */
+#loading-overlay { position:fixed;inset:0;background:rgba(255,255,255,.9);z-index:999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px; }
+.spinner { width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* Sidebar */
+#sidebar { width:220px;background:var(--sidebar);display:flex;flex-direction:column;height:100vh;position:relative;z-index:10; }
+.nav-btn { display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;border-radius:8px;font-size:13.5px;font-weight:500;color:#94a3b8;transition:all .15s;text-align:left;cursor:pointer; }
+.nav-btn:hover { background:var(--sidebar-hover);color:#e2e8f0; }
+.nav-btn.active { background:var(--accent);color:#fff; }
+.nav-btn .nav-badge { margin-left:auto;background:rgba(255,255,255,.25);color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;font-weight:700; }
+
+/* Main */
+#main { flex:1;display:flex;flex-direction:column;min-width:0;height:100vh; }
+#topbar { height:58px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0; }
+#content { flex:1;overflow-y:auto;padding:24px; }
+
+/* Views */
+.view { display:none; }
+.view.active { display:block; }
+
+/* Cards */
+.card { background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px; }
+.stat-card { background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden;cursor:default; }
+.stat-card:hover { border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.08); }
+
+/* Tables */
+.data-table { width:100%;border-collapse:collapse;font-size:13.5px; }
+.data-table th { padding:10px 16px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:#f8fafc;border-bottom:1px solid var(--border); }
+.data-table td { padding:12px 16px;border-bottom:1px solid #f1f5f9;vertical-align:middle; }
+.data-table tr:hover td { background:#f8fafc; }
+.data-table tr:last-child td { border-bottom:none; }
+
+/* Badges */
+.badge { display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700; }
+.badge-blue { background:#eff6ff;color:#2563eb; }
+.badge-green { background:#f0fdf4;color:#16a34a; }
+.badge-yellow { background:#fffbeb;color:#b45309; }
+.badge-orange { background:#fff7ed;color:#c2410c; }
+.badge-red { background:#fef2f2;color:#dc2626; }
+.badge-gray { background:#f1f5f9;color:#475569; }
+
+/* Forms */
+.form-label { display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:5px; }
+.form-input { width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13.5px;outline:none;font-family:inherit;transition:border-color .15s,box-shadow .15s;background:#fff;color:var(--text); }
+.form-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.1); }
+.form-input[type="number"]::-webkit-inner-spin-button { opacity:.5; }
+textarea.form-input { resize:vertical;min-height:70px; }
+select.form-input { cursor:pointer; }
+
+/* Buttons */
+.btn { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap; }
+.btn:active { transform:scale(.97); }
+.btn-primary { background:var(--accent);color:#fff;border:1.5px solid var(--accent-dark); }
+.btn-primary:hover { background:var(--accent-dark); }
+.btn-dark { background:#0f172a;color:#fff;border:1.5px solid #0f172a; }
+.btn-dark:hover { background:#1e293b; }
+.btn-ghost { background:transparent;color:var(--muted);border:1.5px solid var(--border); }
+.btn-ghost:hover { background:#f8fafc;color:var(--text); }
+.btn-danger { background:#fef2f2;color:var(--danger);border:1.5px solid #fecaca; }
+.btn-danger:hover { background:#fee2e2; }
+.btn-success { background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0; }
+.btn-success:hover { background:#dcfce7; }
+.btn-sm { padding:5px 11px;font-size:12px;border-radius:6px; }
+.btn-icon { padding:6px;border-radius:6px; }
+
+/* Modal (no native dialog, use custom) */
+.modal-backdrop { position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;pointer-events:none; }
+.modal-backdrop.open { opacity:1;pointer-events:all; }
+.modal-box { background:#fff;border-radius:14px;width:90%;max-width:640px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,.2);transform:translateY(12px);transition:transform .2s; }
+.modal-backdrop.open .modal-box { transform:translateY(0); }
+.modal-box.wide { max-width:780px; }
+.modal-header { padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0; }
+.modal-body { overflow-y:auto;padding:20px 24px;flex:1; }
+.modal-footer { padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0; }
+
+/* Repair card */
+.repair-card { border:1.5px solid var(--border);border-radius:10px;padding:16px;background:#fff;transition:box-shadow .15s; }
+.repair-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.06); }
+.repair-card.status-pending { border-left:4px solid var(--warning); }
+.repair-card.status-fixing { border-left:4px solid var(--accent);background:#fafcff; }
+.repair-card.status-completed { border-left:4px solid var(--success);opacity:.85; }
+
+/* Type selector */
+.type-pill { display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--border);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--muted); }
+.type-pill:hover { border-color:#94a3b8;color:var(--text); }
+.type-pill.active-repair { background:#fff7ed;border-color:#f97316;color:#c2410c; }
+.type-pill.active-battery { background:#f0fdf4;border-color:#22c55e;color:#15803d; }
+.type-pill.active-regular { background:#eff6ff;border-color:var(--accent);color:var(--accent-dark); }
+
+/* Cost mode toggle */
+.mode-tab { padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);transition:all .15s; }
+.mode-tab.active { border-bottom-color:var(--accent);color:var(--accent); }
+
+/* KPI */
+.kpi-val { font-family:'JetBrains Mono',monospace;font-weight:700; }
+
+/* Animations */
+.fade-up { animation:fadeUp .25s ease both; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* Inventory */
+.inv-card { background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:16px;transition:border-color .15s; }
+.inv-card:hover { border-color:var(--accent); }
+.stock-low { color:var(--danger);font-weight:700; }
+
+/* Print */
+@media print {
+  #sidebar, #topbar, .no-print { display:none!important; }
+  body { overflow:visible; }
+  #content { padding:0; }
+}
+
+/* Responsive */
+@media(max-width:768px) {
+  #sidebar { width:56px; }
+  .nav-label { display:none; }
+  .sidebar-title { display:none; }
+}
+</style>
+</head>
+<body class="flex">
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="login-screen" style="display:flex;position:fixed;inset:0;background:linear-gradient(135deg,#080f1e 0%,#0c1a35 50%,#080f1e 100%);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:20px;padding:48px 40px;width:360px;max-width:90vw;box-shadow:0 40px 100px rgba(0,0,0,.6)">
+    <div style="text-align:center;margin-bottom:36px">
+      <div style="display:inline-flex;align-items:center;justify-content:center;background:#3b82f6;width:56px;height:56px;border-radius:16px;margin-bottom:18px;box-shadow:0 10px 30px rgba(59,130,246,.45)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
+      <h1 style="color:#f1f5f9;font-size:21px;font-weight:900;letter-spacing:.03em;margin:0 0 6px;font-family:'Noto Sans TC',sans-serif">迪特軍 EV</h1>
+      <p style="color:#475569;font-size:12px;margin:0;font-family:'Noto Sans TC',sans-serif">維修管理系統 · 請輸入密碼登入</p>
+    </div>
+    <form id="login-form">
+      <div style="margin-bottom:10px">
+        <label style="display:block;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#475569;margin-bottom:8px;font-family:'Noto Sans TC',sans-serif">登入密碼</label>
+        <div style="position:relative">
+          <input id="login-pw" type="password" autocomplete="current-password" placeholder="••••••••••"
+            style="width:100%;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 44px 12px 14px;color:#f1f5f9;font-size:15px;outline:none;font-family:'Noto Sans TC',sans-serif;box-sizing:border-box;transition:border-color .15s,box-shadow .15s;letter-spacing:.1em"
+            onfocus="this.style.borderColor='#3b82f6';this.style.boxShadow='0 0 0 3px rgba(59,130,246,.2)'"
+            onblur="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
+          <button type="button" id="toggle-pw" style="position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#475569;padding:4px;display:flex;align-items:center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <p id="login-err" style="color:#f87171;font-size:12px;margin:6px 0 14px;min-height:16px;font-weight:600;font-family:'Noto Sans TC',sans-serif"></p>
+      <button id="login-btn" type="submit"
+        style="width:100%;background:#3b82f6;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif;transition:background .15s,transform .1s;letter-spacing:.04em"
+        onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'"
+        onmousedown="this.style.transform='scale(.98)'" onmouseup="this.style.transform='scale(1)'">
+        登入系統
+      </button>
+    </form>
+    <p style="text-align:center;color:#1e293b;font-size:11px;margin-top:28px;font-family:'Noto Sans TC',sans-serif">連續錯誤 3 次將鎖定 · Session 有效 12 小時</p>
+  </div>
+</div>
+
+<!-- ===== APP SHELL ===== -->
+<div id="app-shell" style="display:none;width:100%;height:100vh;overflow:hidden" class="flex">
+
+<!-- Loading -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p style="font-size:13px;color:var(--muted);font-weight:600" id="loading-text">資料同步中...</p>
+</div>
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div style="padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,.06)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="background:var(--accent);padding:8px;border-radius:8px;color:#fff;flex-shrink:0">
+        <i data-lucide="zap" width="18" height="18"></i>
+      </div>
+      <div class="sidebar-title">
+        <div style="color:#f1f5f9;font-weight:900;font-size:14px;letter-spacing:.02em">迪特軍 EV</div>
+        <div style="color:#475569;font-size:10.5px;font-weight:500">維修管理系統</div>
+      </div>
+    </div>
+  </div>
+
+  <nav style="flex:1;overflow-y:auto;padding:12px 10px;display:flex;flex-direction:column;gap:2px">
+    <button class="nav-btn active" id="nav-dashboard" onclick="App.nav('dashboard')">
+      <i data-lucide="layout-dashboard" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">儀表板</span>
+    </button>
+    <button class="nav-btn" id="nav-customers" onclick="App.nav('customers')">
+      <i data-lucide="users" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">客戶 &amp; 車籍</span>
+    </button>
+    <button class="nav-btn" id="nav-repairs" onclick="App.nav('repairs')">
+      <i data-lucide="wrench" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">維修工單</span>
+      <span class="nav-badge" id="badge-repairs" style="display:none">0</span>
+    </button>
+    <button class="nav-btn" id="nav-inventory" onclick="App.nav('inventory')">
+      <i data-lucide="package" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">零件庫存</span>
+      <span class="nav-badge" id="badge-inventory" style="display:none;background:#ef4444">!</span>
+    </button>
+    <div style="border-top:1px solid rgba(255,255,255,.06);margin:8px 0"></div>
+    <button class="nav-btn" id="nav-warranty" onclick="App.nav('warranty')">
+      <i data-lucide="shield-check" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">保固書製作</span>
+    </button>
+    <button class="nav-btn" id="nav-sales" onclick="App.nav('sales')">
+      <i data-lucide="file-pen" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">銷售簽收單</span>
+    </button>
+    <button class="nav-btn" id="nav-intake" onclick="App.nav('intake')">
+      <i data-lucide="clipboard-list" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">維修問卷匯入</span>
+      <span class="nav-badge" id="badge-intake" style="display:none;background:#f59e0b">0</span>
+    </button>
+    <div style="border-top:1px solid rgba(255,255,255,.06);margin:8px 0"></div>
+    <button class="nav-btn" id="nav-settings" onclick="App.nav('settings')">
+      <i data-lucide="settings" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">系統設定</span>
+    </button>
+  </nav>
+
+  <div style="padding:12px;border-top:1px solid rgba(255,255,255,.06)">
+    <div style="background:var(--sidebar-hover);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0">D</div>
+      <div class="sidebar-title" style="min-width:0">
+        <div style="color:#e2e8f0;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">迪特軍</div>
+        <div id="conn-status" style="color:#4ade80;font-size:10px;font-weight:500">● 連線中</div>
+      </div>
+    </div>
+    <button onclick="Auth.logout()" style="margin-top:8px;width:100%;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.2);border-radius:7px;padding:7px;color:#f87171;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif;letter-spacing:.03em;display:flex;align-items:center;justify-content:center;gap:5px;transition:background .15s" onmouseover="this.style.background='rgba(239,68,68,.22)'" onmouseout="this.style.background='rgba(239,68,68,.12)'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      登出
+    </button>
+  </div>
+</aside>
+
+<!-- Main -->
+<div id="main">
+  <!-- Top Bar -->
+  <div id="topbar" class="no-print">
+    <div style="display:flex;align-items:center;gap:12px">
+      <h2 id="page-title" style="font-size:16px;font-weight:700;color:var(--text)">儀表板</h2>
+      <span id="page-subtitle" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn btn-ghost" style="font-size:12px" onclick="App.syncData()">
+        <i data-lucide="refresh-cw" width="14" height="14"></i> 同步
+      </button>
+      <button class="btn btn-primary" onclick="App.quickAdd()">
+        <i data-lucide="plus" width="15" height="15"></i> 新增
+      </button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div id="content">
+
+    <!-- DASHBOARD -->
+    <div id="view-dashboard" class="view active fade-up">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px" id="stat-grid">
+        <div class="stat-card">
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">本月營收</p>
+          <div class="kpi-val" id="kpi-revenue" style="font-size:26px;margin:6px 0 4px">$0</div>
+          <p style="font-size:11px;color:var(--success)" id="kpi-rev-sub">—</p>
+        </div>
+        <div class="stat-card">
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">進行中工單</p>
+          <div class="kpi-val" id="kpi-active" style="font-size:26px;margin:6px 0 4px;color:var(--warning)">0</div>
+          <p style="font-size:11px;color:var(--muted)">待修 + 維修中</p>
+        </div>
+        <div class="stat-card">
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">客戶數</p>
+          <div class="kpi-val" id="kpi-customers" style="font-size:26px;margin:6px 0 4px">0</div>
+          <p style="font-size:11px;color:var(--muted)">累積建檔</p>
+        </div>
+        <div class="stat-card">
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">庫存低水位</p>
+          <div class="kpi-val" id="kpi-low" style="font-size:26px;margin:6px 0 4px;color:var(--danger)">0</div>
+          <p style="font-size:11px;color:var(--muted)">項需補貨</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px">
+        <div class="card">
+          <h3 style="font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:6px">
+            <i data-lucide="clock" width="15" height="15" style="color:var(--accent)"></i> 最近維修工單
+          </h3>
+          <table class="data-table">
+            <thead><tr><th>客戶</th><th>車型</th><th>項目</th><th>狀態</th><th class="text-right">金額</th></tr></thead>
+            <tbody id="dash-recent"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3 style="font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:6px">
+            <i data-lucide="pie-chart" width="15" height="15" style="color:var(--accent)"></i> 工單狀態分佈
+          </h3>
+          <canvas id="status-chart" style="max-height:200px"></canvas>
+          <div id="chart-legend" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CUSTOMERS -->
+    <div id="view-customers" class="view fade-up">
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+        <div style="flex:1;max-width:380px;position:relative">
+          <i data-lucide="search" width="15" height="15" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted)"></i>
+          <input class="form-input" id="cust-search" style="padding-left:34px" placeholder="搜尋姓名、電話、車牌…" oninput="App.renderCustomers()">
+        </div>
+        <select class="form-input" id="cust-filter" style="width:130px" onchange="App.renderCustomers()">
+          <option value="all">全部客戶</option>
+          <option value="purchase">購車客戶</option>
+          <option value="repair">純維修</option>
+        </select>
+        <button class="btn btn-primary" onclick="App.openCustomerModal()">
+          <i data-lucide="user-plus" width="15" height="15"></i> 新增客戶
+        </button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="data-table">
+          <thead><tr><th>姓名</th><th>車型 / 車牌</th><th>電話</th><th>保固</th><th>最後服務</th><th style="text-align:right">操作</th></tr></thead>
+          <tbody id="cust-list"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REPAIRS -->
+    <div id="view-repairs" class="view fade-up">
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px;position:relative">
+          <i data-lucide="search" width="15" height="15" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted)"></i>
+          <input class="form-input" id="repair-search" style="padding-left:34px" placeholder="搜尋客戶或維修項目…" oninput="App.renderRepairs()">
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap" id="repair-filter-btns">
+          <button class="btn btn-ghost btn-sm repair-filter active-filter" data-f="all" onclick="App.setRepairFilter(this,'all')">全部</button>
+          <button class="btn btn-ghost btn-sm repair-filter" data-f="pending" onclick="App.setRepairFilter(this,'pending')">待修</button>
+          <button class="btn btn-ghost btn-sm repair-filter" data-f="fixing" onclick="App.setRepairFilter(this,'fixing')">維修中</button>
+          <button class="btn btn-ghost btn-sm repair-filter" data-f="completed" onclick="App.setRepairFilter(this,'completed')">已完工</button>
+        </div>
+        <button class="btn btn-primary" onclick="App.openRepairModal(null)">
+          <i data-lucide="plus" width="15" height="15"></i> 新增工單
+        </button>
+      </div>
+      <div id="repair-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <!-- INVENTORY -->
+    <div id="view-inventory" class="view fade-up">
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+        <select class="form-input" id="inv-filter" style="width:160px" onchange="App.renderInventory()">
+          <option value="all">所有類別</option>
+          <option value="tire">輪胎</option>
+          <option value="battery">電池/電系</option>
+          <option value="oil">油品/耗材</option>
+          <option value="other">其他</option>
+        </select>
+        <button class="btn btn-dark" onclick="App.openInventoryModal()">
+          <i data-lucide="plus" width="15" height="15"></i> 新增零件
+        </button>
+      </div>
+      <div id="inv-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="view-settings" class="view fade-up">
+      <div style="max-width:560px;display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--accent)">雲端同步設定</h3>
+          <label class="form-label">Google Apps Script URL</label>
+          <input class="form-input" id="setting-url" placeholder="https://script.google.com/macros/s/...">
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" onclick="App.saveApiUrl()">儲存連線</button>
+            <button class="btn btn-ghost btn-sm" onclick="App.initSheets()">初始化工作表</button>
+            <button class="btn btn-ghost btn-sm" onclick="App.syncData()">強制同步</button>
+          </div>
+          <p style="font-size:11px;color:var(--muted);margin-top:8px">初始化將建立 Customers、Repairs、Inventory 三個工作表。</p>
+        </div>
+        <div class="card">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">資料管理</h3>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-ghost btn-sm" onclick="App.exportCSV()"><i data-lucide="download" width="13" height="13"></i> 匯出 CSV</button>
+            <button class="btn btn-danger btn-sm" onclick="App.clearData()"><i data-lucide="trash-2" width="13" height="13"></i> 清除所有資料</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:6px">版本資訊</h3>
+          <p style="font-size:12px;color:var(--muted)">迪特軍 EV 維修管理系統 v3.0 · 支援 Google Sheet 雲端同步</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- WARRANTY VIEW -->
+    <div id="view-warranty" class="view fade-up">
+      <div style="max-width:800px">
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px"><i data-lucide="shield-check" width="16" height="16" style="color:var(--accent)"></i> 選擇客戶產生保固書</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end">
+            <div>
+              <label class="form-label">選擇客戶</label>
+              <select class="form-input" id="wt-customer" onchange="App.fillWarranty()">
+                <option value="">— 選擇客戶 —</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">整車保固期（天）</label>
+              <input class="form-input" id="wt-days" type="number" value="365" oninput="App.fillWarranty()">
+            </div>
+            <button class="btn btn-primary" onclick="App.downloadWarrantyPNG()" style="height:38px">
+              <i data-lucide="image-down" width="15" height="15"></i> 下載 PNG
+            </button>
+          </div>
+        </div>
+
+        <!-- Preview card (this is what gets captured) -->
+        <div id="warranty-preview" style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;font-family:'Noto Sans TC',sans-serif">
+          <!-- Header -->
+          <div style="background:linear-gradient(135deg,#0c1a35,#1a3a6e);padding:32px 40px;position:relative;overflow:hidden">
+            <div style="position:absolute;right:-20px;top:-20px;width:160px;height:160px;border-radius:50%;background:rgba(59,130,246,.15)"></div>
+            <div style="position:absolute;right:60px;bottom:-40px;width:100px;height:100px;border-radius:50%;background:rgba(59,130,246,.1)"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;position:relative">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                  <div style="background:#3b82f6;padding:8px;border-radius:10px">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  </div>
+                  <div>
+                    <div style="color:#fff;font-size:22px;font-weight:900;letter-spacing:.04em">產品保固證書</div>
+                    <div style="color:#93c5fd;font-size:12px;font-weight:500">迪特軍 EV · Product Warranty Certificate</div>
+                  </div>
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div style="color:#93c5fd;font-size:11px">證書編號</div>
+                <div id="wt-cert-no" style="color:#fff;font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace">WR---------</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customer Info -->
+          <div style="padding:28px 40px;background:#f8faff;border-bottom:1px solid #e0e9ff">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">客戶姓名</div>
+                <div id="wt-name" style="font-size:17px;font-weight:700;color:#0f172a">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">車輛型號</div>
+                <div id="wt-model" style="font-size:17px;font-weight:700;color:#0f172a">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">聯絡電話</div>
+                <div id="wt-phone" style="font-size:15px;font-weight:600;color:#0f172a;font-family:'JetBrains Mono',monospace">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">車身序號 VIN</div>
+                <div id="wt-vin" style="font-size:13px;font-weight:600;color:#334155;font-family:'JetBrains Mono',monospace">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">購車日期</div>
+                <div id="wt-pdate" style="font-size:15px;font-weight:600;color:#0f172a">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">整車保固到期</div>
+                <div id="wt-expire" style="font-size:15px;font-weight:700;color:#1d4ed8">—</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Warranty badges -->
+          <div style="padding:20px 40px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #93c5fd;border-radius:10px;padding:14px 16px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">整車保固</div>
+              <div id="wt-main-badge" style="font-size:22px;font-weight:900;color:#1e40af">1 年</div>
+              <div style="font-size:10px;color:#3b82f6;margin-top:2px">非人為因素零件瑕疵</div>
+            </div>
+            <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #86efac;border-radius:10px;padding:14px 16px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">電池保固</div>
+              <div style="font-size:22px;font-weight:900;color:#166534">6 個月</div>
+              <div style="font-size:10px;color:#16a34a;margin-top:2px">原廠電芯瑕疵保固</div>
+            </div>
+            <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#faf5ff,#ede9fe);border:1.5px solid #c4b5fd;border-radius:10px;padding:14px 16px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">免費保養</div>
+              <div style="font-size:22px;font-weight:900;color:#6d28d9">首次</div>
+              <div style="font-size:10px;color:#7c3aed;margin-top:2px">購車後首次定期保養免費</div>
+            </div>
+          </div>
+
+          <!-- Warranty terms -->
+          <div style="padding:24px 40px;background:#fff">
+            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:14px;display:flex;align-items:center;gap:6px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              保固條款與除外責任說明
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;font-size:11.5px">
+              <!-- Covered -->
+              <div style="padding:14px 16px;border-right:1px solid #e2e8f0">
+                <div style="font-weight:700;color:#15803d;margin-bottom:8px;display:flex;align-items:center;gap:4px">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  保固範圍內
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px;color:#374151">
+                  <div style="display:flex;gap:5px"><span style="color:#16a34a;flex-shrink:0">✓</span> 出廠瑕疵導致的零件故障</div>
+                  <div style="display:flex;gap:5px"><span style="color:#16a34a;flex-shrink:0">✓</span> 電池電芯原廠瑕疵（6個月內）</div>
+                  <div style="display:flex;gap:5px"><span style="color:#16a34a;flex-shrink:0">✓</span> 控制器、馬達原廠異常</div>
+                  <div style="display:flex;gap:5px"><span style="color:#16a34a;flex-shrink:0">✓</span> 儀表板、燈具原廠線路故障</div>
+                  <div style="display:flex;gap:5px"><span style="color:#16a34a;flex-shrink:0">✓</span> 正常使用下之結構問題</div>
+                </div>
+              </div>
+              <!-- Not covered -->
+              <div style="padding:14px 16px">
+                <div style="font-weight:700;color:#dc2626;margin-bottom:8px;display:flex;align-items:center;gap:4px">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  除外責任（不在保固範圍）
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px;color:#374151">
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 碰撞、跌倒、人為損壞</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 泡水/涉水超過輪軸高度</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 電池深度放電（長期未充電）</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 使用非原廠充電器造成損壞</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 自行改裝、解限速、改電路</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 輪胎、煞車片等消耗品磨損</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 天災（颱風、淹水、地震）</div>
+                  <div style="display:flex;gap:5px"><span style="color:#dc2626;flex-shrink:0">✗</span> 外送/高強度商業用途使用</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Battery special note -->
+            <div style="margin-top:12px;background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:12px 16px;display:flex;gap:10px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <div style="font-size:11.5px;color:#92400e">
+                <strong>電池保固特別說明：</strong>電池保固期為購車日起 6 個月，僅涵蓋電芯原廠瑕疵。電池長期未使用導致深度放電（電壓低於保護閥值無法喚醒）屬使用不當，不在保固範圍內。建議每月至少充電一次，長期不使用時請保持 50% 以上電量。
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 40px;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:11px;color:#94a3b8">迪特軍 EV 專業電動車服務 · 保固服務專線請電洽門市</div>
+            <div id="wt-issue-date" style="font-size:11px;color:#94a3b8">簽發日期：—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SALES RECEIPT VIEW -->
+    <div id="view-sales" class="view fade-up">
+      <div style="display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start">
+        <!-- Left: Form -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card">
+            <h3 style="font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:6px"><i data-lucide="user" width="14" height="14" style="color:var(--accent)"></i> 帶入客戶資料</h3>
+            <select class="form-input" id="sr-customer" onchange="App.fillSales()" style="margin-bottom:0">
+              <option value="">— 選擇客戶自動帶入 —</option>
+            </select>
+          </div>
+          <div class="card">
+            <h3 style="font-size:13px;font-weight:700;margin-bottom:12px">銷售資訊</h3>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div><label class="form-label">客戶姓名</label><input class="form-input" id="sr-name" oninput="App.updateSales()"></div>
+              <div><label class="form-label">聯絡電話</label><input class="form-input" id="sr-phone" oninput="App.updateSales()"></div>
+              <div><label class="form-label">地址</label><input class="form-input" id="sr-address" oninput="App.updateSales()"></div>
+              <div><label class="form-label">車輛型號</label><input class="form-input" id="sr-model" oninput="App.updateSales()"></div>
+              <div><label class="form-label">規格 / 顏色</label><input class="form-input" id="sr-specs" oninput="App.updateSales()"></div>
+              <div><label class="form-label">車牌號碼</label><input class="form-input" id="sr-plate" oninput="App.updateSales()"></div>
+              <div><label class="form-label">車身序號 VIN</label><input class="form-input" id="sr-vin" oninput="App.updateSales()"></div>
+              <div><label class="form-label">銷售金額（元）</label><input class="form-input" id="sr-price" type="number" oninput="App.updateSales()"></div>
+              <div><label class="form-label">付款方式</label>
+                <select class="form-input" id="sr-payment" onchange="App.updateSales()">
+                  <option>現金付清</option><option>信用卡</option><option>分期付款</option><option>轉帳匯款</option><option>其他</option>
+                </select>
+              </div>
+              <div><label class="form-label">交車日期</label><input class="form-input" id="sr-date" type="date" oninput="App.updateSales()"></div>
+              <div><label class="form-label">備註</label><textarea class="form-input" id="sr-note" rows="2" oninput="App.updateSales()"></textarea></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3 style="font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+              <i data-lucide="pen-tool" width="14" height="14" style="color:var(--accent)"></i> 客戶簽名
+            </h3>
+            <div style="position:relative">
+              <canvas id="sig-canvas" width="296" height="130" style="border:2px dashed #cbd5e1;border-radius:8px;cursor:crosshair;display:block;width:100%;touch-action:none;background:#fafafa"></canvas>
+              <div id="sig-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;color:#cbd5e1;font-size:13px">在此區域簽名</div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:8px">
+              <button class="btn btn-ghost btn-sm" onclick="App.clearSig()"><i data-lucide="rotate-ccw" width="12" height="12"></i> 清除</button>
+              <span style="font-size:11px;color:var(--muted);line-height:1.4;margin-left:4px">可直接用滑鼠或手指在上方簽名，或傳送連結給客戶簽名後截圖貼入</span>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="App.downloadSalesPNG()" style="width:100%;justify-content:center;padding:12px">
+            <i data-lucide="image-down" width="16" height="16"></i> 下載簽收單 PNG
+          </button>
+          <button class="btn btn-dark" onclick="App.generateSignLink()" style="width:100%;justify-content:center;padding:12px">
+            <i data-lucide="link" width="16" height="16"></i> 產生客戶簽名連結
+          </button>
+        </div>
+
+        <!-- Right: Preview -->
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:4px">
+            <i data-lucide="eye" width="12" height="12"></i> 即時預覽
+          </div>
+          <div id="sales-preview" style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;font-family:'Noto Sans TC',sans-serif">
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:24px 32px;display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="color:#93c5fd;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Electric Vehicle Sales Receipt</div>
+                <div style="color:#fff;font-size:20px;font-weight:900;letter-spacing:.03em">電動車銷售簽收單</div>
+                <div style="color:#64748b;font-size:11px;margin-top:4px">迪特軍 EV 專業電動車服務</div>
+              </div>
+              <div style="text-align:right">
+                <div style="color:#475569;font-size:10px">單號</div>
+                <div id="sr-doc-no" style="color:#93c5fd;font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace">SR---------</div>
+                <div id="sr-date-display" style="color:#64748b;font-size:11px;margin-top:4px">—</div>
+              </div>
+            </div>
+
+            <!-- Body -->
+            <div style="padding:24px 32px">
+              <!-- Customer + Vehicle -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:16px;font-size:12.5px">
+                <div style="padding:16px;border-right:1px solid #e2e8f0">
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:10px">買方資料</div>
+                  <div style="display:flex;flex-direction:column;gap:7px">
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">姓名</span><span id="sr-p-name" style="font-weight:700;color:#0f172a">—</span></div>
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">電話</span><span id="sr-p-phone" style="font-family:'JetBrains Mono',monospace;color:#334155">—</span></div>
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">地址</span><span id="sr-p-address" style="color:#334155">—</span></div>
+                  </div>
+                </div>
+                <div style="padding:16px">
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:10px">車輛資料</div>
+                  <div style="display:flex;flex-direction:column;gap:7px">
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">型號</span><span id="sr-p-model" style="font-weight:700;color:#0f172a">—</span></div>
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">規格</span><span id="sr-p-specs" style="color:#334155">—</span></div>
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">車牌</span><span id="sr-p-plate" style="font-family:'JetBrains Mono',monospace;color:#334155">—</span></div>
+                    <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:60px;flex-shrink:0">VIN</span><span id="sr-p-vin" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#334155">—</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Price highlight -->
+              <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #93c5fd;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <div>
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:4px">銷售金額</div>
+                  <div id="sr-p-price" style="font-size:32px;font-weight:900;color:#1e40af;font-family:'JetBrains Mono',monospace">NT$ —</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-size:10px;color:#3b82f6;margin-bottom:4px">付款方式</div>
+                  <div id="sr-p-payment" style="font-size:14px;font-weight:700;color:#1d4ed8">—</div>
+                  <div style="font-size:10px;color:#3b82f6;margin-top:6px">交車日期</div>
+                  <div id="sr-p-date" style="font-size:13px;font-weight:600;color:#1d4ed8">—</div>
+                </div>
+              </div>
+
+              <!-- Checklist -->
+              <div style="border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:12px">
+                <div style="font-weight:700;color:#374151;margin-bottom:8px">交車確認項目</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;color:#4b5563">
+                  <div>☐ 車輛外觀檢查無損傷</div>
+                  <div>☐ 燈光、儀表功能正常</div>
+                  <div>☐ 煞車系統測試正常</div>
+                  <div>☐ 動力系統操作正常</div>
+                  <div>☐ 充電器及配件點收</div>
+                  <div>☐ 鑰匙及說明書點收</div>
+                  <div>☐ 保固條款說明完畢</div>
+                  <div>☐ 操作注意事項說明</div>
+                </div>
+                <div id="sr-p-note" style="margin-top:10px;padding-top:8px;border-top:1px dashed #e2e8f0;font-size:11.5px;color:#64748b;display:none"></div>
+              </div>
+
+              <!-- Signature area -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px">
+                  <div style="font-size:11px;color:#94a3b8;margin-bottom:24px">賣方（迪特軍 EV）簽章：</div>
+                  <div style="border-bottom:1px solid #334155;margin-bottom:4px;height:32px"></div>
+                  <div style="font-size:10px;color:#94a3b8;text-align:center">迪特軍 EV 門市</div>
+                </div>
+                <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px">
+                  <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">買方簽名：</div>
+                  <div style="height:60px;display:flex;align-items:center;justify-content:center">
+                    <img id="sr-sig-preview" src="" alt="" style="max-height:56px;max-width:100%;display:none">
+                    <span id="sr-sig-empty" style="font-size:11px;color:#e2e8f0">尚未簽名</span>
+                  </div>
+                  <div style="border-top:1px solid #334155;padding-top:4px">
+                    <div id="sr-p-name2" style="font-size:10px;color:#94a3b8;text-align:center">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:12px 32px;display:flex;justify-content:space-between;align-items:center">
+              <div style="font-size:10px;color:#94a3b8">本簽收單一式二份，買賣雙方各執一份</div>
+              <div style="font-size:10px;color:#94a3b8">迪特軍 EV · 電動車專業服務</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INTAKE VIEW -->
+    <div id="view-intake" class="view fade-up">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <!-- Share form link card -->
+        <div class="card" style="border:2px solid #fbbf24;background:#fffbeb">
+          <h3 style="font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;color:#78350f">
+            <i data-lucide="share-2" width="14" height="14"></i> 傳送問卷給客戶
+          </h3>
+          <p style="font-size:12px;color:#92400e;margin-bottom:12px;line-height:1.6">將維修登記問卷連結傳給客戶，客戶填完後資料<strong>自動送達</strong>，無需回傳任何東西。</p>
+          <button class="btn btn-dark btn-sm" onclick="App.copyIntakeFormLink()" style="width:100%;justify-content:center;padding:9px;background:#92400e;border-color:#92400e">
+            <i data-lucide="copy" width="13" height="13"></i> 複製問卷連結
+          </button>
+        </div>
+        <!-- Refresh card -->
+        <div class="card" style="border:2px solid var(--accent);background:#eff6ff">
+          <h3 style="font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;color:#1e40af">
+            <i data-lucide="refresh-cw" width="14" height="14"></i> 同步最新問卷
+          </h3>
+          <p style="font-size:12px;color:#1d4ed8;margin-bottom:12px;line-height:1.6">客戶填完後資料會進入 Google Sheet，點下方按鈕取得最新問卷清單。</p>
+          <button class="btn btn-primary btn-sm" onclick="App.fetchIntakeFromCloud()" style="width:100%;justify-content:center;padding:9px">
+            <i data-lucide="refresh-cw" width="13" height="13"></i> 重新整理問卷清單
+          </button>
+        </div>
+      </div>
+
+      <!-- Pending intake list -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <h3 style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px">
+            <i data-lucide="inbox" width="14" height="14" style="color:var(--accent)"></i>
+            待處理問卷
+          </h3>
+          <span id="intake-count" style="font-size:11px;color:var(--muted)">0 筆</span>
+        </div>
+        <div id="intake-list" style="padding:8px 0">
+          <div style="text-align:center;padding:32px;color:var(--muted);font-size:13px">
+            尚無待處理問卷<br><span style="font-size:11px;margin-top:4px;display:block">客戶填完問卷後，貼入連結即可在此查看</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- Intake Import Modal -->
+<div id="modal-intake" class="modal-backdrop">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <h3 style="font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px">
+        <i data-lucide="clipboard-list" width="16" height="16" style="color:var(--accent)"></i> 匯入維修問卷
+      </h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-intake')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:13px 16px;font-size:12.5px;color:#14532d;display:flex;gap:10px;align-items:flex-start">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>解析成功！請確認以下資料後點「建立客戶與工單」完成匯入。</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">客戶資料</div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:13px" id="intake-preview-customer"></div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">車輛資訊</div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:13px" id="intake-preview-vehicle"></div>
+        </div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">維修需求</div>
+        <div style="display:flex;flex-direction:column;gap:5px;font-size:13px" id="intake-preview-repair"></div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">預約資訊</div>
+        <div style="display:flex;flex-direction:column;gap:5px;font-size:13px" id="intake-preview-appt"></div>
+      </div>
+      <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;padding:11px 14px;font-size:12px;color:#7c2d12">
+        <strong>匯入後：</strong>系統將自動建立「新客戶」和「待修工單」，可在客戶管理與維修工單頁面查看及編輯。
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-intake')">取消</button>
+      <button class="btn btn-primary" id="intake-confirm-btn" onclick="App.confirmIntakeImport()" style="background:#16a34a;border-color:#15803d">
+        <i data-lucide="user-plus" width="14" height="14"></i> 建立客戶與工單
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Sign Link Modal -->
+<div id="modal-signlink" class="modal-backdrop">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-header">
+      <h3 style="font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px">
+        <i data-lucide="link" width="16" height="16" style="color:var(--accent)"></i> 客戶簽名連結
+      </h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-signlink')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:14px 16px;font-size:13px;color:#14532d;display:flex;gap:10px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><polyline points="20 6 9 17 4 12"/></svg>
+        <div>連結已產生！將連結傳給客戶，客戶點開後可在手機上完成簽名並下載簽收單 PNG。</div>
+      </div>
+      <div>
+        <label class="form-label">簽名連結（可複製傳送）</label>
+        <div style="display:flex;gap:8px">
+          <input id="signlink-url" class="form-input" readonly style="font-size:11px;font-family:'JetBrains Mono',monospace;background:#f8fafc">
+          <button class="btn btn-primary" onclick="App.copySignLink()" style="white-space:nowrap;flex-shrink:0" id="copy-link-btn">
+            <i data-lucide="copy" width="14" height="14"></i> 複製
+          </button>
+        </div>
+      </div>
+      <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;padding:12px 14px;font-size:12px;color:#7c2d12">
+        <strong>使用說明：</strong><br>
+        1. 複製連結後用 LINE / 簡訊傳給客戶<br>
+        2. 客戶點開連結，手機上簽名後點「確認簽收」<br>
+        3. 系統自動下載含簽名的 PNG 到客戶手機<br>
+        4. 客戶再將圖片傳回給你存檔
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-signlink')">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CUSTOMER SIGN PAGE (shown when URL has #sign=...) ===== -->
+<div id="sign-page" style="display:none;min-height:100vh;background:#f0f4f8;font-family:'Noto Sans TC',sans-serif;overflow-y:auto">
+  <div style="max-width:480px;margin:0 auto;padding:16px 12px 40px">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:14px;padding:20px 22px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="color:#93c5fd;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">迪特軍 EV · 電動車銷售</div>
+        <div style="color:#fff;font-size:17px;font-weight:900;letter-spacing:.03em">電動車銷售簽收單</div>
+      </div>
+      <div style="text-align:right">
+        <div style="color:#475569;font-size:10px">單號</div>
+        <div id="sp-docno" style="color:#93c5fd;font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace">—</div>
+      </div>
+    </div>
+
+    <!-- Info Card -->
+    <div style="background:#fff;border-radius:12px;padding:18px;margin-bottom:12px;border:1px solid #e2e8f0">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:12px">買方資料</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px">
+        <div style="display:flex;gap:10px"><span style="color:#94a3b8;width:56px;flex-shrink:0">姓名</span><span id="sp-name" style="font-weight:700;color:#0f172a"></span></div>
+        <div style="display:flex;gap:10px"><span style="color:#94a3b8;width:56px;flex-shrink:0">電話</span><span id="sp-phone" style="font-family:'JetBrains Mono',monospace;color:#334155"></span></div>
+        <div style="display:flex;gap:10px;display:none" id="sp-addr-row"><span style="color:#94a3b8;width:56px;flex-shrink:0">地址</span><span id="sp-address" style="color:#334155"></span></div>
+      </div>
+    </div>
+
+    <!-- Vehicle card -->
+    <div style="background:#fff;border-radius:12px;padding:18px;margin-bottom:12px;border:1px solid #e2e8f0">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:12px">車輛資料</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px">
+        <div style="display:flex;gap:10px"><span style="color:#94a3b8;width:56px;flex-shrink:0">型號</span><span id="sp-model" style="font-weight:700;color:#0f172a"></span></div>
+        <div style="display:flex;gap:10px"><span style="color:#94a3b8;width:56px;flex-shrink:0">規格</span><span id="sp-specs" style="color:#334155"></span></div>
+        <div style="display:flex;gap:10px"><span style="color:#94a3b8;width:56px;flex-shrink:0">車牌</span><span id="sp-plate" style="font-family:'JetBrains Mono',monospace;color:#334155"></span></div>
+        <div style="display:flex;gap:10px;display:none" id="sp-vin-row"><span style="color:#94a3b8;width:56px;flex-shrink:0">VIN</span><span id="sp-vin" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#334155"></span></div>
+      </div>
+    </div>
+
+    <!-- Price card -->
+    <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #93c5fd;border-radius:12px;padding:16px 18px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:4px">銷售金額</div>
+        <div id="sp-price" style="font-size:28px;font-weight:900;color:#1e40af;font-family:'JetBrains Mono',monospace">NT$ —</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:#3b82f6;margin-bottom:3px">付款方式</div>
+        <div id="sp-payment" style="font-size:13px;font-weight:700;color:#1d4ed8"></div>
+        <div style="font-size:10px;color:#3b82f6;margin-top:6px;margin-bottom:3px">交車日期</div>
+        <div id="sp-date" style="font-size:12px;font-weight:600;color:#1d4ed8"></div>
+      </div>
+    </div>
+
+    <!-- Checklist -->
+    <div style="background:#fff;border-radius:12px;padding:16px 18px;margin-bottom:12px;border:1px solid #e2e8f0;font-size:13px">
+      <div style="font-weight:700;color:#374151;margin-bottom:10px">請確認以下交車項目</div>
+      <div style="display:flex;flex-direction:column;gap:8px" id="sp-checklist">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>車輛外觀檢查無損傷</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>燈光、儀表功能正常</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>煞車系統測試正常</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>動力系統操作正常</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>充電器及配件點收</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>鑰匙及說明書點收</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>保固條款說明完畢</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;accent-color:#3b82f6"><span>操作注意事項說明</span></label>
+      </div>
+      <div id="sp-note-block" style="margin-top:10px;padding-top:10px;border-top:1px dashed #e2e8f0;font-size:12px;color:#64748b;display:none"></div>
+    </div>
+
+    <!-- Signature -->
+    <div style="background:#fff;border-radius:12px;padding:16px 18px;margin-bottom:16px;border:1px solid #e2e8f0">
+      <div style="font-weight:700;color:#374151;margin-bottom:4px;font-size:13px">本人親筆簽名</div>
+      <div style="font-size:11.5px;color:#94a3b8;margin-bottom:10px">確認已閱讀並同意上述交車事項</div>
+      <div style="position:relative">
+        <canvas id="sp-sig-canvas" width="440" height="140" style="width:100%;border:2px dashed #cbd5e1;border-radius:10px;cursor:crosshair;touch-action:none;background:#fafcff;display:block"></canvas>
+        <div id="sp-sig-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:6px">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          <span style="color:#cbd5e1;font-size:13px">請在此處簽名</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <button onclick="SignPage.clearSig()" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:5px 12px;font-size:12px;color:#64748b;cursor:pointer;font-family:inherit">清除重簽</button>
+        <span id="sp-sig-status" style="font-size:11px;color:#94a3b8">尚未簽名</span>
+      </div>
+    </div>
+
+    <!-- Confirm button -->
+    <button id="sp-confirm-btn" onclick="SignPage.confirm()" style="width:100%;background:#1e40af;color:#fff;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.03em;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#1e40af'">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      確認簽收 · 下載簽收單
+    </button>
+    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:10px">點擊後系統將自動下載含您簽名的 PNG 簽收單</p>
+
+    <!-- Hidden receipt for capture -->
+    <div id="sp-receipt" style="position:fixed;left:-9999px;top:0;width:640px;background:#fff;font-family:'Noto Sans TC',sans-serif">
+      <div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:24px 32px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="color:#93c5fd;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">Electric Vehicle Sales Receipt</div>
+          <div style="color:#fff;font-size:20px;font-weight:900;letter-spacing:.03em">電動車銷售簽收單</div>
+          <div style="color:#64748b;font-size:11px;margin-top:3px">迪特軍 EV 專業電動車服務</div>
+        </div>
+        <div style="text-align:right">
+          <div style="color:#475569;font-size:10px">單號</div>
+          <div id="sp-r-docno" style="color:#93c5fd;font-size:13px;font-weight:700;font-family:monospace"></div>
+          <div id="sp-r-date" style="color:#64748b;font-size:11px;margin-top:3px"></div>
+        </div>
+      </div>
+      <div style="padding:22px 28px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px;font-size:12px">
+          <div style="padding:14px;border-right:1px solid #e2e8f0">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:8px">買方資料</div>
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">姓名</span><span id="sp-r-name" style="font-weight:700;color:#0f172a"></span></div>
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">電話</span><span id="sp-r-phone" style="font-family:monospace;color:#334155"></span></div>
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">地址</span><span id="sp-r-address" style="color:#334155"></span></div>
+            </div>
+          </div>
+          <div style="padding:14px">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:8px">車輛資料</div>
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">型號</span><span id="sp-r-model" style="font-weight:700;color:#0f172a"></span></div>
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">規格</span><span id="sp-r-specs" style="color:#334155"></span></div>
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">車牌</span><span id="sp-r-plate" style="font-family:monospace;color:#334155"></span></div>
+              <div style="display:flex;gap:8px"><span style="color:#94a3b8;width:50px;flex-shrink:0">VIN</span><span id="sp-r-vin" style="font-family:monospace;font-size:10px;color:#334155"></span></div>
+            </div>
+          </div>
+        </div>
+        <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #93c5fd;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div>
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:3px">銷售金額</div>
+            <div id="sp-r-price" style="font-size:28px;font-weight:900;color:#1e40af;font-family:monospace">NT$ —</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:9px;color:#3b82f6;margin-bottom:2px">付款方式</div>
+            <div id="sp-r-payment" style="font-size:13px;font-weight:700;color:#1d4ed8"></div>
+            <div style="font-size:9px;color:#3b82f6;margin-top:5px;margin-bottom:2px">交車日期</div>
+            <div id="sp-r-datestr" style="font-size:12px;font-weight:600;color:#1d4ed8"></div>
+          </div>
+        </div>
+        <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:11.5px">
+          <div style="font-weight:700;color:#374151;margin-bottom:7px">交車確認項目（客戶已確認）</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;color:#4b5563">
+            <div>☑ 車輛外觀檢查無損傷</div><div>☑ 燈光、儀表功能正常</div>
+            <div>☑ 煞車系統測試正常</div><div>☑ 動力系統操作正常</div>
+            <div>☑ 充電器及配件點收</div><div>☑ 鑰匙及說明書點收</div>
+            <div>☑ 保固條款說明完畢</div><div>☑ 操作注意事項說明</div>
+          </div>
+          <div id="sp-r-note" style="margin-top:8px;padding-top:7px;border-top:1px dashed #e2e8f0;font-size:11px;color:#64748b"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px">
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:20px">賣方（迪特軍 EV）簽章：</div>
+            <div style="border-bottom:1px solid #334155;margin-bottom:3px;height:28px"></div>
+            <div style="font-size:9px;color:#94a3b8;text-align:center">迪特軍 EV 門市</div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px">
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">買方簽名：</div>
+            <div style="height:52px;display:flex;align-items:center;justify-content:center">
+              <img id="sp-r-sig" src="" alt="簽名" style="max-height:48px;max-width:100%">
+            </div>
+            <div style="border-top:1px solid #334155;padding-top:3px">
+              <div id="sp-r-signame" style="font-size:9px;color:#94a3b8;text-align:center"></div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:#94a3b8;text-align:center">簽署時間：<span id="sp-r-signtime"></span></div>
+      </div>
+      <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:10px 28px;display:flex;justify-content:space-between">
+        <div style="font-size:9px;color:#94a3b8">本簽收單一式二份，買賣雙方各執一份</div>
+        <div style="font-size:9px;color:#94a3b8">迪特軍 EV · 電動車專業服務</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Customer Modal -->
+<div id="modal-customer" class="modal-backdrop">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <h3 id="cust-modal-title" style="font-size:15px;font-weight:700">新增客戶</h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-customer')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">基本資料</p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label class="form-label">客戶姓名 *</label>
+              <input class="form-input" id="cf-name" required>
+            </div>
+            <div>
+              <label class="form-label">聯絡電話 *</label>
+              <input class="form-input" id="cf-phone" type="tel">
+            </div>
+            <div>
+              <label class="form-label">地址（選填）</label>
+              <input class="form-input" id="cf-address">
+            </div>
+            <div>
+              <label class="form-label">備註</label>
+              <textarea class="form-input" id="cf-notes" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">車輛資訊</p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label class="form-label">客戶類別</label>
+              <select class="form-input" id="cf-category">
+                <option value="purchase">購車客戶（含保固）</option>
+                <option value="repair">純維修客戶</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">車型型號 *</label>
+              <input class="form-input" id="cf-model" placeholder="e.g. Gogoro 2, Ai-1">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div>
+                <label class="form-label">車牌</label>
+                <input class="form-input" id="cf-plate" placeholder="ABC-1234" style="font-family:'JetBrains Mono',monospace;text-align:center">
+              </div>
+              <div>
+                <label class="form-label">車身序號(VIN)</label>
+                <input class="form-input" id="cf-vin" style="font-family:'JetBrains Mono',monospace;font-size:11px">
+              </div>
+            </div>
+            <div>
+              <label class="form-label">規格 / 顏色</label>
+              <input class="form-input" id="cf-specs">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div>
+                <label class="form-label">購車日期</label>
+                <input class="form-input" id="cf-purchase-date" type="date">
+              </div>
+              <div>
+                <label class="form-label">交車金額</label>
+                <input class="form-input" id="cf-price" type="number" placeholder="0">
+              </div>
+            </div>
+            <div>
+              <label class="form-label">保固天數</label>
+              <input class="form-input" id="cf-warranty" type="number" value="365">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <input type="hidden" id="cf-id">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-customer')">取消</button>
+      <button class="btn btn-primary" onclick="App.saveCustomer()"><i data-lucide="save" width="14" height="14"></i> 儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Repair Modal -->
+<div id="modal-repair" class="modal-backdrop">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <h3 id="repair-modal-title" style="font-size:15px;font-weight:700">新增維修工單</h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-repair')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <!-- Customer picker -->
+        <div>
+          <label class="form-label">選擇客戶 *</label>
+          <select class="form-input" id="rf-customer">
+            <option value="">— 請選擇客戶 —</option>
+          </select>
+        </div>
+
+        <!-- Status + Mileage -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label class="form-label">工單狀態</label>
+            <select class="form-input" id="rf-status">
+              <option value="pending">待修中</option>
+              <option value="fixing">維修中</option>
+              <option value="completed">已完工</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">里程數（KM）</label>
+            <input class="form-input" id="rf-mileage" type="number" placeholder="選填">
+          </div>
+        </div>
+
+        <!-- Service type pills -->
+        <div>
+          <label class="form-label" style="margin-bottom:8px">服務類型</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="type-pill active-repair" id="rtype-repair" onclick="App.setRepairType('repair')"><i data-lucide="wrench" width="13" height="13"></i>故障維修</button>
+            <button type="button" class="type-pill" id="rtype-regular" onclick="App.setRepairType('regular')"><i data-lucide="calendar-check" width="13" height="13"></i>定期保養</button>
+            <button type="button" class="type-pill" id="rtype-battery" onclick="App.setRepairType('battery')"><i data-lucide="battery" width="13" height="13"></i>更換電池</button>
+          </div>
+          <input type="hidden" id="rf-type" value="repair">
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="form-label">維修項目描述 *</label>
+          <textarea class="form-input" id="rf-desc" rows="3" placeholder="例如：儀表更換、更換後輪胎、定期保養…"></textarea>
+        </div>
+
+        <!-- Cost section - toggle mode -->
+        <div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
+          <div style="display:flex;border-bottom:1px solid var(--border);background:#f8fafc;padding:0 16px">
+            <button type="button" class="mode-tab active" id="mode-simple" onclick="App.setCostMode('simple')">簡易模式（直接輸入總額）</button>
+            <button type="button" class="mode-tab" id="mode-detail" onclick="App.setCostMode('detail')">明細模式（零件 + 工資）</button>
+          </div>
+          <div style="padding:14px 16px">
+            <!-- Simple mode -->
+            <div id="cost-simple">
+              <label class="form-label">工單總金額（選填）</label>
+              <div style="position:relative">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;font-family:'JetBrains Mono',monospace">$</span>
+                <input class="form-input" id="rf-total-simple" type="number" min="0" placeholder="0" style="padding-left:28px;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700" oninput="App.syncCostFields()">
+              </div>
+              <p style="font-size:11px;color:var(--muted);margin-top:5px">例如：儀表更換 → 直接輸入 1300</p>
+            </div>
+            <!-- Detail mode -->
+            <div id="cost-detail" style="display:none">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div>
+                  <label class="form-label">零件費用</label>
+                  <input class="form-input" id="rf-parts" type="number" value="0" oninput="App.calcTotal()">
+                </div>
+                <div>
+                  <label class="form-label">工資 / 服務費</label>
+                  <input class="form-input" id="rf-labor" type="number" value="0" oninput="App.calcTotal()">
+                </div>
+              </div>
+              <div style="margin-top:12px;background:#f0f7ff;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:13px;font-weight:600;color:var(--muted)">合計</span>
+                <span id="rf-total-detail" style="font-size:20px;font-weight:900;color:var(--accent);font-family:'JetBrains Mono',monospace">$0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Internal note -->
+        <div>
+          <label class="form-label">內部備註（選填）</label>
+          <textarea class="form-input" id="rf-note" rows="2" placeholder="給自己看的備注，不印在工單上…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <input type="hidden" id="rf-id">
+      <input type="hidden" id="rf-cost-mode" value="simple">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-repair')">取消</button>
+      <button class="btn btn-primary" onclick="App.saveRepair()"><i data-lucide="save" width="14" height="14"></i> 儲存工單</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inventory Modal -->
+<div id="modal-inventory" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="inv-modal-title" style="font-size:15px;font-weight:700">新增庫存零件</h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-inventory')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label class="form-label">零件名稱 *</label>
+          <input class="form-input" id="if-name">
+        </div>
+        <div>
+          <label class="form-label">類別</label>
+          <select class="form-input" id="if-cat">
+            <option value="tire">輪胎</option>
+            <option value="battery">電池/電系</option>
+            <option value="oil">油品/耗材</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label class="form-label">目前庫存（件）</label>
+            <input class="form-input" id="if-stock" type="number" value="0">
+          </div>
+          <div>
+            <label class="form-label">單價（$）</label>
+            <input class="form-input" id="if-price" type="number" value="0">
+          </div>
+        </div>
+        <div>
+          <label class="form-label">低庫存警示數量</label>
+          <input class="form-input" id="if-min" type="number" value="2" placeholder="低於此數量會顯示警示">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <input type="hidden" id="if-id">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-inventory')">取消</button>
+      <button class="btn btn-dark" onclick="App.saveInventory()"><i data-lucide="save" width="14" height="14"></i> 儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div id="modal-confirm" class="modal-backdrop">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-header">
+      <h3 id="confirm-title" style="font-size:15px;font-weight:700">確認刪除</h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-confirm')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-msg" style="font-size:13.5px;color:var(--muted)">確定要刪除嗎？此操作無法復原。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-confirm')">取消</button>
+      <button class="btn btn-danger" id="confirm-ok-btn">確認刪除</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app-shell -->
+
+<script>
+// ====================================================
+const API = {
+  url: '',
+  init() {
+    this.url = localStorage.getItem('diter_api_url') || 'https://script.google.com/macros/s/AKfycbxbLxjrCJwS9_Sj67lbQP8MeZa3LqxZGjjhOSA-RiBAEozKwzJRcGaj4IcbElk8pXcf/exec';
+    const el = document.getElementById('setting-url');
+    if(el) el.value = this.url;
+    this.updateStatus(!!this.url);
+  },
+  updateStatus(on) {
+    const el = document.getElementById('conn-status');
+    if(!el) return;
+    el.textContent = on ? '● 連線中' : '● 本地模式';
+    el.style.color = on ? '#4ade80' : '#64748b';
+  },
+  async call(action, payload={}) {
+    if(!this.url) return null;
+    try {
+      const r = await fetch(this.url, {
+        method:'POST', redirect:'follow',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({action, ...payload})
+      });
+      return await r.json();
+    } catch(e) {
+      console.warn('API error', e);
+      return null;
+    }
+  }
+};
+
+// ====================================================
+//  Store
+// ====================================================
+const Store = {
+  db: { customers:[], repairs:[], inventory:[] },
+  init() {
+    API.init();
+    const raw = localStorage.getItem('diter_db_v3');
+    if(raw) {
+      try { this.db = JSON.parse(raw); } catch(e){}
+    }
+    if(!this.db.customers) this.db.customers = [];
+    if(!this.db.repairs)   this.db.repairs = [];
+    if(!this.db.inventory) this.db.inventory = [];
+  },
+  save() {
+    localStorage.setItem('diter_db_v3', JSON.stringify(this.db));
+  },
+  async syncDown() {
+    loading(true);
+    const res = await API.call('read');
+    loading(false);
+    if(res?.status === 'success' && res.data) {
+      if(res.data.customers) this.db.customers = res.data.customers;
+      if(res.data.repairs)   this.db.repairs   = res.data.repairs;
+      if(res.data.inventory) this.db.inventory = res.data.inventory;
+      this.save();
+      return true;
+    }
+    return false;
+  },
+  async push(table, data) {
+    if(!API.url) return;
+    API.call('upsert', {table, data});
+  },
+  async del(table, id) {
+    if(!API.url) return;
+    API.call('delete', {table, id});
+  }
+};
+
+// ====================================================
+//  Helpers
+// ====================================================
+const gid = () => '_' + Math.random().toString(36).substr(2,9);
+const fmt$ = n => { const v = parseInt(n)||0; return v===0 ? '—' : '$' + v.toLocaleString(); };
+const fmtDate = s => { if(!s) return '—'; const d=new Date(s); return isNaN(d)?'—':d.toLocaleDateString('zh-TW'); };
+
+function loading(on, txt='同步中…') {
+  const el = document.getElementById('loading-overlay');
+  el.style.display = on ? 'flex' : 'none';
+  if(on) document.getElementById('loading-text').textContent = txt;
+}
+
+function warranty(c) {
+  if(!c.purchaseDate) return {ok:false,days:0,end:'—'};
+  const s = new Date(c.purchaseDate);
+  const e = new Date(s); e.setDate(s.getDate()+(parseInt(c.warrantyDays)||365));
+  const days = Math.ceil((e-Date.now())/86400000);
+  return {ok:days>0, days:days>0?days:0, end:e.toLocaleDateString('zh-TW')};
+}
+
+let _repairFilter = 'all';
+let _statusChart = null;
+
+// ====================================================
+//  App
+// ====================================================
+const App = {
+  currentView: 'dashboard',
+
+  async init() {
+    Store.init();
+    lucide.createIcons();
+    this.nav('dashboard');
+    this.updateKPIs();
+    // try cloud sync silently
+    const ok = await Store.syncDown();
+    if(ok) { this.nav(this.currentView); this.updateKPIs(); }
+  },
+
+  nav(v) {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('nav-'+v).classList.add('active');
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-'+v).classList.add('active');
+    document.getElementById('view-'+v).classList.remove('fade-up');
+    void document.getElementById('view-'+v).offsetWidth;
+    document.getElementById('view-'+v).classList.add('fade-up');
+    this.currentView = v;
+    const titles = {dashboard:'儀表板',customers:'客戶 & 車籍',repairs:'維修工單中心',inventory:'零件庫存',warranty:'保固書製作',sales:'銷售簽收單',intake:'維修問卷匯入',settings:'系統設定'};
+    document.getElementById('page-title').textContent = titles[v]||v;
+    if(v==='dashboard') this.renderDashboard();
+    if(v==='customers') this.renderCustomers();
+    if(v==='repairs')   this.renderRepairs();
+    if(v==='inventory') this.renderInventory();
+    if(v==='warranty')  this.initWarranty();
+    if(v==='sales')     this.initSales();
+    if(v==='intake')    this.initIntake();
+    lucide.createIcons();
+  },
+
+  quickAdd() {
+    if(this.currentView==='customers') this.openCustomerModal();
+    else if(this.currentView==='repairs') this.openRepairModal(null);
+    else if(this.currentView==='inventory') this.openInventoryModal();
+    else this.openCustomerModal();
+  },
+
+  async syncData() {
+    const ok = await Store.syncDown();
+    if(ok) { this.nav(this.currentView); this.updateKPIs(); }
+    else alert('同步失敗，請確認 API 連線設定。');
+  },
+
+  // ---- KPIs ----
+  updateKPIs() {
+    const now = new Date();
+    const mo = now.getMonth(), yr = now.getFullYear();
+    const rev = Store.db.repairs.reduce((s,r) => {
+      const d = new Date(r.date);
+      if(d.getMonth()===mo && d.getFullYear()===yr && r.status==='completed')
+        s += (parseInt(r.totalCost)||0);
+      return s;
+    }, 0);
+    document.getElementById('kpi-revenue').textContent = '$' + rev.toLocaleString();
+    document.getElementById('kpi-active').textContent = Store.db.repairs.filter(r=>r.status!=='completed').length;
+    document.getElementById('kpi-customers').textContent = Store.db.customers.length;
+    const low = Store.db.inventory.filter(i=>i.stock<=(parseInt(i.minStock)||2));
+    document.getElementById('kpi-low').textContent = low.length;
+    const badge = document.getElementById('badge-repairs');
+    const pending = Store.db.repairs.filter(r=>r.status!=='completed').length;
+    badge.textContent = pending; badge.style.display = pending>0 ? '' : 'none';
+    const ibadge = document.getElementById('badge-inventory');
+    ibadge.style.display = low.length>0 ? '' : 'none';
+  },
+
+  // ---- Dashboard ----
+  renderDashboard() {
+    const tbody = document.getElementById('dash-recent');
+    tbody.innerHTML = '';
+    const sorted = [...Store.db.repairs].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
+    if(!sorted.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;font-size:12px">尚無工單紀錄</td></tr>'; }
+    sorted.forEach(r => {
+      const c = Store.db.customers.find(x=>x.id===r.customerId)||{name:'—',model:'—'};
+      const smap = {pending:['badge-yellow','待修'],fixing:['badge-blue','維修中'],completed:['badge-green','已完工']};
+      const [scls,stxt] = smap[r.status]||['badge-gray','—'];
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td style="font-weight:600">${c.name}</td><td style="font-size:12px;color:var(--muted)">${c.model||'—'}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${r.description||'—'}</td><td><span class="badge ${scls}">${stxt}</span></td><td style="text-align:right;font-weight:700;font-family:'JetBrains Mono',monospace">${fmt$(r.totalCost)}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    // Chart
+    const pending  = Store.db.repairs.filter(r=>r.status==='pending').length;
+    const fixing   = Store.db.repairs.filter(r=>r.status==='fixing').length;
+    const complete = Store.db.repairs.filter(r=>r.status==='completed').length;
+    const ctx = document.getElementById('status-chart').getContext('2d');
+    if(_statusChart) _statusChart.destroy();
+    _statusChart = new Chart(ctx, {
+      type:'doughnut',
+      data: { labels:['待修','維修中','已完工'], datasets:[{ data:[pending,fixing,complete], backgroundColor:['#fbbf24','#3b82f6','#22c55e'], borderWidth:0, hoverOffset:4 }] },
+      options: { cutout:'72%', plugins:{ legend:{display:false} }, animation:{duration:600} }
+    });
+    document.getElementById('chart-legend').innerHTML = [
+      ['#fbbf24','待修',pending],['#3b82f6','維修中',fixing],['#22c55e','已完工',complete]
+    ].map(([c,n,v])=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px"><span style="width:10px;height:10px;border-radius:3px;background:${c};flex-shrink:0"></span><span style="color:var(--muted)">${n}</span><span style="font-weight:700">${v}</span></div>`).join('');
+  },
+
+  // ---- Customers ----
+  renderCustomers() {
+    const tbody = document.getElementById('cust-list');
+    tbody.innerHTML = '';
+    const q = (document.getElementById('cust-search').value||'').toLowerCase();
+    const filt = document.getElementById('cust-filter').value;
+    const list = Store.db.customers.filter(c => {
+      const mq = !q || c.name.toLowerCase().includes(q) || (c.phone||'').includes(q) || (c.plate||'').toLowerCase().includes(q) || (c.vin||'').toLowerCase().includes(q);
+      const mf = filt==='all' || c.category===filt;
+      return mq && mf;
+    });
+    if(!list.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px;font-size:13px">沒有符合的客戶</td></tr>'; return; }
+    list.forEach(c => {
+      const w = warranty(c);
+      const lastR = Store.db.repairs.filter(r=>r.customerId===c.id).sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+      const catBadge = c.category==='repair' ? '<span class="badge badge-orange">維修</span>' : '<span class="badge badge-blue">購車</span>';
+      const wBadge = c.category==='purchase' ? (w.ok ? `<span class="badge badge-green">保固 ${w.days}天</span>` : '<span class="badge badge-gray">已過期</span>') : '—';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><div style="font-weight:600;font-size:13.5px">${c.name}</div><div style="font-size:11px;color:var(--muted);margin-top:1px">${catBadge}</div></td>
+        <td><div style="font-size:13px">${c.model||'—'}</div><div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted)">${c.plate||'未填車牌'}</div></td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted)">${c.phone||'—'}</td>
+        <td>${wBadge}</td>
+        <td style="font-size:12px;color:var(--muted)">${lastR ? fmtDate(lastR.date) : '無紀錄'}</td>
+        <td style="text-align:right">
+          <button class="btn btn-ghost btn-sm" style="margin-right:4px" onclick="App.openRepairModal('${c.id}')"><i data-lucide="wrench" width="13" height="13"></i> 新增工單</button>
+          <button class="btn btn-ghost btn-icon btn-sm" style="margin-right:4px" onclick="App.openCustomerModal('${c.id}')"><i data-lucide="pencil" width="13" height="13"></i></button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="App.confirmDelete('customer','${c.id}','${c.name}')"><i data-lucide="trash-2" width="13" height="13"></i></button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    lucide.createIcons();
+  },
+
+  openCustomerModal(id) {
+    const fields = ['name','phone','address','notes','category','model','plate','vin','specs','purchase-date','price','warranty'];
+    fields.forEach(f => {
+      const el = document.getElementById('cf-'+f);
+      if(el) el.value = '';
+    });
+    document.getElementById('cf-warranty').value = 365;
+    document.getElementById('cf-id').value = '';
+    document.getElementById('cf-purchase-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('cust-modal-title').textContent = '新增客戶';
+
+    if(id) {
+      const c = Store.db.customers.find(x=>x.id===id);
+      if(!c) return;
+      document.getElementById('cf-id').value = c.id;
+      document.getElementById('cf-name').value = c.name||'';
+      document.getElementById('cf-phone').value = c.phone||'';
+      document.getElementById('cf-address').value = c.address||'';
+      document.getElementById('cf-notes').value = c.notes||'';
+      document.getElementById('cf-category').value = c.category||'purchase';
+      document.getElementById('cf-model').value = c.model||'';
+      document.getElementById('cf-plate').value = c.plate||'';
+      document.getElementById('cf-vin').value = c.vin||'';
+      document.getElementById('cf-specs').value = c.specs||'';
+      document.getElementById('cf-price').value = c.price||'';
+      document.getElementById('cf-warranty').value = c.warrantyDays||365;
+      if(c.purchaseDate) document.getElementById('cf-purchase-date').value = c.purchaseDate;
+      document.getElementById('cust-modal-title').textContent = '編輯客戶資料';
+    }
+    this.openModal('modal-customer');
+  },
+
+  saveCustomer() {
+    const n = document.getElementById('cf-name').value.trim();
+    const p = document.getElementById('cf-phone').value.trim();
+    if(!n||!p) { alert('姓名和電話為必填'); return; }
+    const id = document.getElementById('cf-id').value || gid();
+    const data = {
+      id, name:n, phone:p,
+      address: document.getElementById('cf-address').value,
+      notes:   document.getElementById('cf-notes').value,
+      category:document.getElementById('cf-category').value,
+      model:   document.getElementById('cf-model').value,
+      plate:   document.getElementById('cf-plate').value,
+      vin:     document.getElementById('cf-vin').value,
+      specs:   document.getElementById('cf-specs').value,
+      price:   document.getElementById('cf-price').value,
+      warrantyDays: document.getElementById('cf-warranty').value,
+      purchaseDate: document.getElementById('cf-purchase-date').value
+    };
+    const idx = Store.db.customers.findIndex(x=>x.id===id);
+    if(idx>=0) Store.db.customers[idx]=data; else Store.db.customers.push(data);
+    Store.save(); Store.push('Customers', data);
+    this.closeModal('modal-customer');
+    this.renderCustomers(); this.updateKPIs();
+  },
+
+  // ---- Repairs ----
+  setRepairFilter(btn, f) {
+    _repairFilter = f;
+    document.querySelectorAll('.repair-filter').forEach(b => b.classList.remove('active-filter','btn-primary','btn-ghost'));
+    document.querySelectorAll('.repair-filter').forEach(b => b.classList.add('btn-ghost'));
+    btn.classList.remove('btn-ghost'); btn.classList.add('active-filter','btn-primary');
+    this.renderRepairs();
+  },
+
+  renderRepairs() {
+    const container = document.getElementById('repair-list');
+    container.innerHTML = '';
+    const q = (document.getElementById('repair-search').value||'').toLowerCase();
+    let list = [...Store.db.repairs].sort((a,b)=>new Date(b.date)-new Date(a.date));
+    if(_repairFilter !== 'all') list = list.filter(r=>r.status===_repairFilter);
+    if(q) list = list.filter(r => {
+      const c = Store.db.customers.find(x=>x.id===r.customerId)||{};
+      return (c.name||'').toLowerCase().includes(q) || (r.description||'').toLowerCase().includes(q);
+    });
+    if(!list.length) {
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted);font-size:13px">沒有符合的工單</div>';
+      return;
+    }
+    list.forEach(r => {
+      const c = Store.db.customers.find(x=>x.id===r.customerId)||{name:'未知客戶',model:'—'};
+      const smap = {pending:['badge-yellow','待修中'],fixing:['badge-blue','維修中'],completed:['badge-green','已完工']};
+      const [scls,stxt] = smap[r.status]||['badge-gray','—'];
+      const tmap = {repair:'故障維修',regular:'定期保養',battery:'更換電池'};
+      const tcls = r.type==='repair' ? 'badge-orange' : r.type==='battery' ? 'badge-green' : 'badge-blue';
+      const card = document.createElement('div');
+      card.className = `repair-card status-${r.status}`;
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div style="min-width:0;flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+              <span style="font-weight:700;font-size:15px">${c.name}</span>
+              <span style="font-size:12px;color:var(--muted)">${c.model||'—'}</span>
+              ${c.plate?`<span style="font-family:'JetBrains Mono',monospace;font-size:11px;background:#f1f5f9;padding:1px 6px;border-radius:4px">${c.plate}</span>`:''}
+              <span class="badge ${tcls}" style="font-size:10px">${tmap[r.type]||'—'}</span>
+              <span class="badge ${scls}" style="font-size:10px">${stxt}</span>
+            </div>
+            <p style="font-size:13.5px;color:var(--text);margin-bottom:6px">${r.description||'—'}</p>
+            <div style="display:flex;gap:14px;font-size:11px;color:var(--muted)">
+              <span style="display:flex;align-items:center;gap:3px"><i data-lucide="calendar" width="11" height="11"></i> ${fmtDate(r.date)}</span>
+              ${r.mileage?`<span style="display:flex;align-items:center;gap:3px"><i data-lucide="gauge" width="11" height="11"></i> ${parseInt(r.mileage).toLocaleString()} km</span>`:''}
+              ${r.note?`<span style="display:flex;align-items:center;gap:3px"><i data-lucide="message-square" width="11" height="11"></i> ${r.note}</span>`:''}
+            </div>
+            ${r.partsCost||r.laborCost ? `<div style="margin-top:6px;font-size:11px;color:var(--muted)">零件 ${fmt$(r.partsCost)} + 工資 ${fmt$(r.laborCost)}</div>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:22px;font-weight:900;font-family:'JetBrains Mono',monospace;color:var(--accent)">${fmt$(r.totalCost)}</div>
+            <div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end">
+              ${r.status!=='completed' ? `<button class="btn btn-success btn-sm" onclick="App.completeRepair('${r.id}')"><i data-lucide="check" width="12" height="12"></i> 完工</button>` : ''}
+              <button class="btn btn-ghost btn-icon btn-sm" onclick="App.openRepairModal(null,'${r.id}')"><i data-lucide="pencil" width="13" height="13"></i></button>
+              <button class="btn btn-danger btn-icon btn-sm" onclick="App.confirmDelete('repair','${r.id}','維修工單')"><i data-lucide="trash-2" width="13" height="13"></i></button>
+            </div>
+          </div>
+        </div>`;
+      container.appendChild(card);
+    });
+    lucide.createIcons();
+  },
+
+  openRepairModal(customerId, repairId) {
+    // Reset
+    document.getElementById('rf-id').value = '';
+    document.getElementById('rf-customer').value = '';
+    document.getElementById('rf-status').value = 'pending';
+    document.getElementById('rf-mileage').value = '';
+    document.getElementById('rf-desc').value = '';
+    document.getElementById('rf-total-simple').value = '';
+    document.getElementById('rf-parts').value = 0;
+    document.getElementById('rf-labor').value = 0;
+    document.getElementById('rf-total-detail').textContent = '$0';
+    document.getElementById('rf-note').value = '';
+    document.getElementById('repair-modal-title').textContent = '新增維修工單';
+    this.setRepairType('repair');
+    this.setCostMode('simple');
+
+    // Populate customer dropdown
+    const sel = document.getElementById('rf-customer');
+    sel.innerHTML = '<option value="">— 請選擇客戶 —</option>';
+    Store.db.customers.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = `${c.name} (${c.model||'—'} ${c.plate||''})`;
+      sel.appendChild(opt);
+    });
+
+    if(customerId && !repairId) sel.value = customerId;
+
+    if(repairId) {
+      const r = Store.db.repairs.find(x=>x.id===repairId);
+      if(!r) return;
+      document.getElementById('rf-id').value = r.id;
+      sel.value = r.customerId||'';
+      document.getElementById('rf-status').value = r.status||'pending';
+      document.getElementById('rf-mileage').value = r.mileage||'';
+      document.getElementById('rf-desc').value = r.description||'';
+      document.getElementById('rf-note').value = r.note||'';
+      this.setRepairType(r.type||'repair');
+      if(r.partsCost || r.laborCost) {
+        this.setCostMode('detail');
+        document.getElementById('rf-parts').value = r.partsCost||0;
+        document.getElementById('rf-labor').value = r.laborCost||0;
+        this.calcTotal();
+      } else {
+        this.setCostMode('simple');
+        document.getElementById('rf-total-simple').value = r.totalCost||'';
+      }
+      document.getElementById('repair-modal-title').textContent = '編輯維修工單';
+    }
+    this.openModal('modal-repair');
+  },
+
+  setRepairType(t) {
+    document.getElementById('rf-type').value = t;
+    ['repair','regular','battery'].forEach(x => {
+      const btn = document.getElementById('rtype-'+x);
+      btn.className = 'type-pill' + (x===t ? ' active-'+x : '');
+    });
+  },
+
+  setCostMode(m) {
+    document.getElementById('rf-cost-mode').value = m;
+    document.getElementById('cost-simple').style.display = m==='simple' ? '' : 'none';
+    document.getElementById('cost-detail').style.display = m==='detail' ? '' : 'none';
+    document.getElementById('mode-simple').classList.toggle('active', m==='simple');
+    document.getElementById('mode-detail').classList.toggle('active', m==='detail');
+  },
+
+  calcTotal() {
+    const p = parseInt(document.getElementById('rf-parts').value)||0;
+    const l = parseInt(document.getElementById('rf-labor').value)||0;
+    document.getElementById('rf-total-detail').textContent = '$' + (p+l).toLocaleString();
+  },
+
+  syncCostFields() {},
+
+  saveRepair() {
+    const desc = document.getElementById('rf-desc').value.trim();
+    const custId = document.getElementById('rf-customer').value;
+    if(!desc) { alert('請填寫維修項目描述'); return; }
+    if(!custId) { alert('請選擇客戶'); return; }
+    const mode = document.getElementById('rf-cost-mode').value;
+    let total=0, parts=0, labor=0;
+    if(mode==='detail') {
+      parts = parseInt(document.getElementById('rf-parts').value)||0;
+      labor = parseInt(document.getElementById('rf-labor').value)||0;
+      total = parts + labor;
+    } else {
+      total = parseInt(document.getElementById('rf-total-simple').value)||0;
+    }
+    const id = document.getElementById('rf-id').value || gid();
+    const existing = Store.db.repairs.find(x=>x.id===id);
+    const data = {
+      id,
+      customerId: custId,
+      date: existing?.date || new Date().toISOString(),
+      type: document.getElementById('rf-type').value,
+      status: document.getElementById('rf-status').value,
+      mileage: document.getElementById('rf-mileage').value,
+      description: desc,
+      note: document.getElementById('rf-note').value,
+      partsCost: parts, laborCost: labor, totalCost: total
+    };
+    const idx = Store.db.repairs.findIndex(x=>x.id===id);
+    if(idx>=0) Store.db.repairs[idx]=data; else Store.db.repairs.push(data);
+    Store.save(); Store.push('Repairs', data);
+    this.closeModal('modal-repair');
+    this.renderRepairs(); this.updateKPIs();
+  },
+
+  completeRepair(id) {
+    const r = Store.db.repairs.find(x=>x.id===id);
+    if(!r) return;
+    r.status = 'completed';
+    Store.save(); Store.push('Repairs', r);
+    this.renderRepairs(); this.updateKPIs();
+  },
+
+  // ---- Inventory ----
+  openInventoryModal(id) {
+    document.getElementById('if-id').value = '';
+    document.getElementById('if-name').value = '';
+    document.getElementById('if-cat').value = 'tire';
+    document.getElementById('if-stock').value = 0;
+    document.getElementById('if-price').value = 0;
+    document.getElementById('if-min').value = 2;
+    document.getElementById('inv-modal-title').textContent = '新增庫存零件';
+    if(id) {
+      const item = Store.db.inventory.find(x=>x.id===id);
+      if(!item) return;
+      document.getElementById('if-id').value = item.id;
+      document.getElementById('if-name').value = item.name||'';
+      document.getElementById('if-cat').value = item.category||'other';
+      document.getElementById('if-stock').value = item.stock||0;
+      document.getElementById('if-price').value = item.price||0;
+      document.getElementById('if-min').value = item.minStock||2;
+      document.getElementById('inv-modal-title').textContent = '編輯零件';
+    }
+    this.openModal('modal-inventory');
+  },
+
+  renderInventory() {
+    const grid = document.getElementById('inv-grid');
+    grid.innerHTML = '';
+    const filt = document.getElementById('inv-filter').value;
+    const list = filt==='all' ? Store.db.inventory : Store.db.inventory.filter(i=>i.category===filt);
+    if(!list.length) { grid.innerHTML='<div style="color:var(--muted);font-size:13px;padding:24px">目前沒有零件紀錄</div>'; return; }
+    const catLabel = {tire:'輪胎',battery:'電池/電系',oil:'油品/耗材',other:'其他'};
+    list.forEach(item => {
+      const low = item.stock <= (parseInt(item.minStock)||2);
+      const card = document.createElement('div');
+      card.className = 'inv-card';
+      if(low) card.style.borderColor = '#fca5a5';
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+          <span class="badge badge-gray" style="font-size:10px">${catLabel[item.category]||'其他'}</span>
+          <span style="font-weight:700;font-family:'JetBrains Mono',monospace;font-size:14px">$${parseInt(item.price||0).toLocaleString()}</span>
+        </div>
+        <h4 style="font-weight:700;font-size:14px;margin-bottom:10px">${item.name}</h4>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px">庫存</div>
+            <div style="font-size:26px;font-weight:900;font-family:'JetBrains Mono',monospace;${low?'color:var(--danger)':''}">${item.stock}</div>
+            ${low?'<div style="font-size:10px;color:var(--danger);font-weight:700">⚠ 需補貨</div>':''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-ghost btn-sm" onclick="App.adjStock('${item.id}',-1)" style="padding:4px 10px;font-size:16px;font-weight:700">−</button>
+              <button class="btn btn-ghost btn-sm" onclick="App.adjStock('${item.id}',1)" style="padding:4px 10px;font-size:16px;font-weight:700">+</button>
+            </div>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-ghost btn-icon btn-sm" onclick="App.openInventoryModal('${item.id}')"><i data-lucide="pencil" width="12" height="12"></i></button>
+              <button class="btn btn-danger btn-icon btn-sm" onclick="App.confirmDelete('inventory','${item.id}','${item.name}')"><i data-lucide="trash-2" width="12" height="12"></i></button>
+            </div>
+          </div>
+        </div>`;
+      grid.appendChild(card);
+    });
+    lucide.createIcons();
+  },
+
+  saveInventory() {
+    const n = document.getElementById('if-name').value.trim();
+    if(!n) { alert('請填寫零件名稱'); return; }
+    const id = document.getElementById('if-id').value || gid();
+    const data = {
+      id, name:n,
+      category: document.getElementById('if-cat').value,
+      stock: parseInt(document.getElementById('if-stock').value)||0,
+      price: parseInt(document.getElementById('if-price').value)||0,
+      minStock: parseInt(document.getElementById('if-min').value)||2
+    };
+    const idx = Store.db.inventory.findIndex(x=>x.id===id);
+    if(idx>=0) Store.db.inventory[idx]=data; else Store.db.inventory.push(data);
+    Store.save(); Store.push('Inventory', data);
+    this.closeModal('modal-inventory');
+    this.renderInventory(); this.updateKPIs();
+  },
+
+  adjStock(id, d) {
+    const item = Store.db.inventory.find(x=>x.id===id);
+    if(!item) return;
+    item.stock = Math.max(0, (item.stock||0)+d);
+    Store.save(); Store.push('Inventory', item);
+    this.renderInventory(); this.updateKPIs();
+  },
+
+  // ---- Delete ----
+  confirmDelete(table, id, label) {
+    document.getElementById('confirm-title').textContent = `刪除${table==='customer'?'客戶':table==='repair'?'工單':'零件'}`;
+    document.getElementById('confirm-msg').textContent = `確定要刪除「${label}」嗎？此操作無法復原。`;
+    document.getElementById('confirm-ok-btn').onclick = () => {
+      if(table==='customer') { Store.db.customers = Store.db.customers.filter(x=>x.id!==id); Store.del('Customers',id); }
+      if(table==='repair')   { Store.db.repairs   = Store.db.repairs.filter(x=>x.id!==id);   Store.del('Repairs',id); }
+      if(table==='inventory'){ Store.db.inventory = Store.db.inventory.filter(x=>x.id!==id); Store.del('Inventory',id); }
+      Store.save();
+      this.closeModal('modal-confirm');
+      this.nav(this.currentView); this.updateKPIs();
+    };
+    this.openModal('modal-confirm');
+  },
+
+  // ---- Intake Form ----
+  _intakePending: [],
+  _intakeData: null,
+
+  initIntake() {
+    this.fetchIntakeFromCloud();
+    // Check URL hash for auto-import
+    const hash = window.location.hash;
+    if(hash.startsWith('#import=')) {
+      const encoded = hash.slice(8);
+      window.location.hash = '';
+      setTimeout(() => this.parseIntakeLinkData(encoded), 400);
+    }
+    lucide.createIcons();
+  },
+
+  async fetchIntakeFromCloud() {
+    const list = document.getElementById('intake-list');
+    const countEl = document.getElementById('intake-count');
+    if(list) list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px">從雲端讀取問卷中...</div>';
+
+    try {
+      const res = await API.call('readIntake');
+      if(res?.status === 'success' && res.data) {
+        this._intakePending = res.data;
+        this.renderIntakePending();
+        return;
+      }
+    } catch(e) { console.warn('readIntake error', e); }
+
+    // fallback: show empty
+    this._intakePending = [];
+    this.renderIntakePending();
+  },
+
+  copyIntakeFormLink() {
+    const base = window.location.href.split('/').slice(0,-1).join('/');
+    const link = base + '/repair_form.html';
+    navigator.clipboard.writeText(link).then(() => {
+      toast('問卷連結已複製！傳給客戶即可');
+    }).catch(() => {
+      prompt('請複製此問卷連結：', link);
+    });
+  },
+
+  parseIntakeLink() {
+    const input = document.getElementById('intake-link-input').value.trim();
+    const hashIdx = input.indexOf('#import=');
+    if(hashIdx === -1) { alert('連結格式不正確，請確認是否包含 #import= 的參數'); return; }
+    const encoded = input.slice(hashIdx + 8);
+    this.parseIntakeLinkData(encoded);
+  },
+
+  parseIntakeLinkData(encoded) {
+    let data;
+    try {
+      data = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+    } catch(e) { alert('連結解析失敗，資料可能已損毀'); return; }
+    this._intakeData = data;
+
+    const typeMap = {repair:'故障維修',regular:'定期保養',battery:'電池問題',upgrade:'升級改裝'};
+    const urgMap  = {normal:'一般維修',urgent:'盡快處理',asap:'緊急！無法騎乘'};
+    const timeMap = {morning:'上午 09:00–12:00',afternoon:'下午 13:00–17:00',evening:'傍晚 17:00–19:00'};
+
+    const row = (k,v) => v ? `<div style="display:flex;gap:8px"><span style="color:var(--muted);width:64px;flex-shrink:0">${k}</span><span style="font-weight:600;color:var(--text)">${v}</span></div>` : '';
+
+    const c = data.customer||{}, ve = data.vehicle||{}, r = data.repair||{}, a = data.appointment||{};
+
+    document.getElementById('intake-preview-customer').innerHTML =
+      row('姓名', c.name) + row('電話', c.phone) + row('LINE', c.line) + row('地址', c.address) ||
+      '<span style="color:var(--muted)">—</span>';
+
+    document.getElementById('intake-preview-vehicle').innerHTML =
+      row('車型', ve.model) + row('車牌', ve.plate) + row('VIN', ve.vin) +
+      row('規格', ve.specs) + row('里程', ve.mileage ? ve.mileage+' km':'') +
+      row('購車日', ve.purchaseDate ? new Date(ve.purchaseDate).toLocaleDateString('zh-TW'):'') ||
+      '<span style="color:var(--muted)">—</span>';
+
+    const symsHtml = r.symptoms?.length
+      ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">${r.symptoms.map(s=>`<span style="background:#f1f5f9;color:#475569;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600">${s}</span>`).join('')}</div>`
+      : '';
+
+    document.getElementById('intake-preview-repair').innerHTML =
+      row('類型', typeMap[r.type]||r.type) +
+      row('緊急度', urgMap[r.urgency]||r.urgency) +
+      (symsHtml ? `<div style="display:flex;gap:8px"><span style="color:var(--muted);width:64px;flex-shrink:0">症狀</span>${symsHtml}</div>` : '') +
+      (r.description ? `<div style="margin-top:4px;font-size:12.5px;color:var(--text);line-height:1.6;background:#f8fafc;border-radius:6px;padding:8px 10px">${r.description}</div>` : '');
+
+    document.getElementById('intake-preview-appt').innerHTML =
+      row('日期', a.date ? new Date(a.date).toLocaleDateString('zh-TW') : '') +
+      row('時段', timeMap[a.time]||a.time) +
+      row('備註', a.note) +
+      row('單號', data.orderNo);
+
+    this.openModal('modal-intake');
+  },
+
+  confirmIntakeImport() {
+    const data = this._intakeData;
+    if(!data) return;
+    const c=data.customer||{}, ve=data.vehicle||{}, r=data.repair||{}, a=data.appointment||{};
+
+    const custId = gid();
+    const customer = {
+      id:custId, name:c.name||'未知客戶', phone:c.phone||'',
+      address:c.address||'', notes:c.line?'LINE: '+c.line:'',
+      category:'repair', model:ve.model||'', plate:ve.plate||'',
+      vin:ve.vin||'', specs:ve.specs||'', purchaseDate:ve.purchaseDate||'',
+      warrantyDays:'365', price:''
+    };
+
+    const existing = Store.db.customers.find(x => x.phone && x.phone===c.phone);
+    let targetId = custId;
+    if(existing) {
+      targetId = existing.id;
+      toast(`⚠ 電話 ${c.phone} 已有客戶「${existing.name}」，工單建立在現有客戶下`);
+    } else {
+      Store.db.customers.push(customer);
+      Store.push('Customers', customer);
+    }
+
+    const statusMap = { normal:'pending', urgent:'pending', asap:'fixing' };
+    const symptoms = Array.isArray(r.symptoms) ? r.symptoms : (r.symptoms||'').split('、').filter(Boolean);
+    const sympLine = symptoms.length?`【症狀】${symptoms.join('、')}\n`:'';
+    const urgLine  = r.urgency==='asap'?'⚠ 緊急：客戶表示無法騎乘\n':r.urgency==='urgent'?'⚡ 希望盡快處理\n':'';
+    const apptLine = a.date?`【預約】${new Date(a.date).toLocaleDateString('zh-TW')} ${a.time==='morning'?'上午':a.time==='afternoon'?'下午':'傍晚'}\n`:'';
+    const noteLine = a.note?`【備註】${a.note}`:'';
+
+    const repair = {
+      id:gid(), customerId:targetId,
+      date:data.submittedAt||new Date().toISOString(),
+      type:r.type==='battery'?'battery':r.type==='regular'?'regular':'repair',
+      status:statusMap[r.urgency]||'pending',
+      mileage:ve.mileage||'',
+      description:(urgLine+sympLine+(r.description||'')+'\n'+apptLine+noteLine).trim(),
+      note:`來源：客戶維修問卷 ${data.orderNo||''}`,
+      partsCost:0, laborCost:0, totalCost:0
+    };
+
+    Store.db.repairs.push(repair);
+    Store.push('Repairs', repair);
+    Store.save();
+
+    // Mark as imported in Google Sheet
+    if(data.orderNo) {
+      API.call('markIntake', { orderId:data.orderNo, status:'imported' });
+    }
+    // Update local list
+    const idx = this._intakePending.findIndex(i => i.orderId===data.orderNo);
+    if(idx>=0) this._intakePending[idx].status='imported';
+
+    this.closeModal('modal-intake');
+    this._intakeData = null;
+    this.updateKPIs();
+    this.renderIntakePending();
+
+    setTimeout(() => {
+      if(confirm(`✓ 匯入成功！\n客戶「${c.name}」和維修工單已建立。\n\n是否前往查看維修工單？`)) {
+        this.nav('repairs');
+      }
+    }, 150);
+  },
+
+  renderIntakePending() {
+    const list = document.getElementById('intake-list');
+    const countEl = document.getElementById('intake-count');
+    if(!list) return;
+
+    const items = this._intakePending;
+    const newCount = items.filter(i => i.status==='new').length;
+    if(countEl) countEl.textContent = items.length+' 筆';
+
+    const badge = document.getElementById('badge-intake');
+    if(badge) { badge.textContent=newCount; badge.style.display=newCount>0?'':'none'; }
+
+    if(!items.length) {
+      list.innerHTML = '<div style="text-align:center;padding:36px;color:var(--muted);font-size:13px">尚無問卷資料<br><span style="font-size:11px;margin-top:4px;display:block">客戶填完問卷後會自動出現在此，點「重新整理」同步</span></div>';
+      return;
+    }
+
+    const urgColor = {normal:'#16a34a',urgent:'#d97706',asap:'#ef4444'};
+    const typeMap  = {repair:'故障維修',regular:'定期保養',battery:'電池問題',upgrade:'升級改裝'};
+
+    list.innerHTML = [...items].reverse().map(item => {
+      const uCol = urgColor[item.urgency]||'#64748b';
+      const isNew = item.status==='new';
+      const typeLabel = typeMap[item.repairType]||item.repairType||'—';
+      const desc = (item.description||'').substring(0,38);
+      const apptStr = item.apptDate ? new Date(item.apptDate).toLocaleDateString('zh-TW') : '';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--border);${isNew?'background:#fffbeb':''}">
+        <div style="width:9px;height:9px;border-radius:50%;background:${uCol};flex-shrink:0;${isNew?'box-shadow:0 0 0 3px rgba(245,158,11,.2)':''}"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px">
+            ${item.name||'—'}
+            ${isNew?'<span style="font-size:10px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:99px;padding:1px 7px;font-weight:700">NEW</span>':''}
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${item.model||'—'} · ${typeLabel}${desc?' · '+desc+'…':''}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${item.phone||''} ${apptStr?'· 預約 '+apptStr:''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+          ${isNew
+            ? `<button class="btn btn-primary btn-sm" onclick="App.openIntakeItem('${item.orderId}')" style="font-size:11px;padding:5px 10px"><i data-lucide="check" width="12" height="12"></i> 建立工單</button>`
+            : `<span style="font-size:11px;background:#f0fdf4;color:#16a34a;border:1px solid #86efac;border-radius:99px;padding:2px 8px;font-weight:700">已匯入</span>`
+          }
+          <div style="font-size:10px;color:var(--muted)">${item.orderId||''}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    lucide.createIcons();
+  },
+
+  openIntakeItem(orderId) {
+    const item = this._intakePending.find(i => i.orderId===orderId);
+    if(!item) return;
+    // Convert flat Google Sheet row → nested structure
+    this._intakeData = {
+      orderNo: item.orderId,
+      submittedAt: item.submittedAt,
+      customer:    { name:item.name, phone:item.phone, line:item.line, address:item.address },
+      vehicle:     { model:item.model, plate:item.plate, vin:item.vin, specs:item.specs, mileage:item.mileage, purchaseDate:item.purchaseDate },
+      repair:      { type:item.repairType, urgency:item.urgency, symptoms:item.symptoms?item.symptoms.split('、').filter(Boolean):[], description:item.description },
+      appointment: { date:item.apptDate, time:item.apptTime, note:item.apptNote, source:item.source }
+    };
+    this._showIntakePreview(this._intakeData);
+  },
+
+  _showIntakePreview(data) {
+    const typeMap = {repair:'故障維修',regular:'定期保養',battery:'電池問題',upgrade:'升級改裝'};
+    const urgMap  = {normal:'一般維修',urgent:'盡快處理',asap:'緊急！無法騎乘'};
+    const timeMap = {morning:'上午 09:00–12:00',afternoon:'下午 13:00–17:00',evening:'傍晚 17:00–19:00'};
+    const row = (k,v) => v?`<div style="display:flex;gap:8px"><span style="color:var(--muted);width:64px;flex-shrink:0">${k}</span><span style="font-weight:600;color:var(--text)">${v}</span></div>`:'';
+    const c=data.customer||{}, ve=data.vehicle||{}, r=data.repair||{}, a=data.appointment||{};
+
+    document.getElementById('intake-preview-customer').innerHTML =
+      row('姓名',c.name)+row('電話',c.phone)+row('LINE',c.line)+row('地址',c.address)||'<span style="color:var(--muted)">—</span>';
+
+    document.getElementById('intake-preview-vehicle').innerHTML =
+      row('車型',ve.model)+row('車牌',ve.plate)+row('VIN',ve.vin)+
+      row('規格',ve.specs)+row('里程',ve.mileage?ve.mileage+' km':'')+
+      row('購車日',ve.purchaseDate?new Date(ve.purchaseDate).toLocaleDateString('zh-TW'):'')||'<span style="color:var(--muted)">—</span>';
+
+    const symptoms = Array.isArray(r.symptoms)?r.symptoms:(r.symptoms||'').split('、').filter(Boolean);
+    const symsHtml = symptoms.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">${symptoms.map(s=>`<span style="background:#f1f5f9;color:#475569;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600">${s}</span>`).join('')}</div>`:'';
+
+    document.getElementById('intake-preview-repair').innerHTML =
+      row('類型',typeMap[r.type]||r.type)+row('緊急度',urgMap[r.urgency]||r.urgency)+
+      (symsHtml?`<div style="display:flex;gap:8px"><span style="color:var(--muted);width:64px;flex-shrink:0">症狀</span>${symsHtml}</div>`:'')+
+      (r.description?`<div style="margin-top:4px;font-size:12.5px;color:var(--text);line-height:1.6;background:#f8fafc;border-radius:6px;padding:8px 10px">${r.description}</div>`:'');
+
+    document.getElementById('intake-preview-appt').innerHTML =
+      row('日期',a.date?new Date(a.date).toLocaleDateString('zh-TW'):'')+
+      row('時段',timeMap[a.time]||a.time)+row('備註',a.note)+row('單號',data.orderNo);
+
+    this.openModal('modal-intake');
+  },
+
+  // ---- Warranty ----
+  initWarranty() {
+    const sel = document.getElementById('wt-customer');
+    sel.innerHTML = '<option value="">— 選擇客戶 —</option>';
+    Store.db.customers.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id; o.textContent = `${c.name} (${c.model||'—'})`;
+      sel.appendChild(o);
+    });
+  },
+
+  fillWarranty() {
+    const id = document.getElementById('wt-customer').value;
+    const days = parseInt(document.getElementById('wt-days').value)||365;
+    if(!id) return;
+    const c = Store.db.customers.find(x=>x.id===id);
+    if(!c) return;
+    const certNo = 'WR-' + (c.id||'').substr(1,8).toUpperCase();
+    const pDate = c.purchaseDate ? new Date(c.purchaseDate) : new Date();
+    const expDate = new Date(pDate); expDate.setDate(pDate.getDate()+days);
+    const mainBadge = days >= 365 ? `${Math.round(days/365)} 年` : `${days} 天`;
+    document.getElementById('wt-cert-no').textContent = certNo;
+    document.getElementById('wt-name').textContent = c.name||'—';
+    document.getElementById('wt-model').textContent = c.model||'—';
+    document.getElementById('wt-phone').textContent = c.phone||'—';
+    document.getElementById('wt-vin').textContent = c.vin||'—';
+    document.getElementById('wt-pdate').textContent = c.purchaseDate ? new Date(c.purchaseDate).toLocaleDateString('zh-TW') : '—';
+    document.getElementById('wt-expire').textContent = expDate.toLocaleDateString('zh-TW');
+    document.getElementById('wt-main-badge').textContent = mainBadge;
+    document.getElementById('wt-issue-date').textContent = '簽發日期：' + new Date().toLocaleDateString('zh-TW');
+  },
+
+  async downloadWarrantyPNG() {
+    const id = document.getElementById('wt-customer').value;
+    if(!id) { alert('請先選擇客戶'); return; }
+    const c = Store.db.customers.find(x=>x.id===id);
+    await this._downloadNodeAsPNG('warranty-preview', `保固書_${c?.name||'客戶'}_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.png`);
+  },
+
+  // ---- Sales ----
+  _sigDrawing: false, _sigHasSig: false,
+
+  initSales() {
+    const sel = document.getElementById('sr-customer');
+    sel.innerHTML = '<option value="">— 選擇客戶自動帶入 —</option>';
+    Store.db.customers.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id; o.textContent = `${c.name} (${c.model||'—'})`;
+      sel.appendChild(o);
+    });
+    if(!document.getElementById('sr-date').value)
+      document.getElementById('sr-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('sr-doc-no').textContent = 'SR-' + Date.now().toString(36).toUpperCase().substr(-8);
+    this._initSignature();
+    this.updateSales();
+  },
+
+  fillSales() {
+    const id = document.getElementById('sr-customer').value;
+    if(!id) return;
+    const c = Store.db.customers.find(x=>x.id===id);
+    if(!c) return;
+    const set = (i,v) => { const el=document.getElementById(i); if(el) el.value=v||''; };
+    set('sr-name',c.name); set('sr-phone',c.phone); set('sr-address',c.address);
+    set('sr-model',c.model); set('sr-specs',c.specs); set('sr-plate',c.plate);
+    set('sr-vin',c.vin); set('sr-price',c.price);
+    if(c.purchaseDate) document.getElementById('sr-date').value = c.purchaseDate;
+    this.updateSales();
+  },
+
+  updateSales() {
+    const get = id => document.getElementById(id)?.value||'';
+    const name=get('sr-name'), phone=get('sr-phone'), address=get('sr-address');
+    const model=get('sr-model'), specs=get('sr-specs'), plate=get('sr-plate'), vin=get('sr-vin');
+    const price=parseInt(get('sr-price'))||0;
+    const payment=get('sr-payment'), date=get('sr-date'), note=get('sr-note');
+    const setText=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v||'—'; };
+    setText('sr-p-name',name); setText('sr-p-name2',name);
+    setText('sr-p-phone',phone); setText('sr-p-address',address);
+    setText('sr-p-model',model); setText('sr-p-specs',specs);
+    setText('sr-p-plate',plate); setText('sr-p-vin',vin);
+    setText('sr-p-payment',payment);
+    document.getElementById('sr-p-price').textContent = price>0 ? 'NT$ '+price.toLocaleString() : 'NT$ —';
+    document.getElementById('sr-date-display').textContent = date ? new Date(date).toLocaleDateString('zh-TW') : '—';
+    setText('sr-p-date', date ? new Date(date).toLocaleDateString('zh-TW') : '');
+    const noteEl=document.getElementById('sr-p-note');
+    if(note){noteEl.textContent='備註：'+note;noteEl.style.display='';}else{noteEl.style.display='none';}
+  },
+
+  _initSignature() {
+    const canvas = document.getElementById('sig-canvas');
+    if(!canvas || canvas._sigInited) return;
+    canvas._sigInited = true;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle='#0f172a'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round';
+    const getPos = e => {
+      const r=canvas.getBoundingClientRect();
+      const sx=canvas.width/r.width, sy=canvas.height/r.height;
+      if(e.touches) return{x:(e.touches[0].clientX-r.left)*sx,y:(e.touches[0].clientY-r.top)*sy};
+      return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};
+    };
+    canvas.addEventListener('mousedown',e=>{e.preventDefault();this._sigDrawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);document.getElementById('sig-placeholder').style.display='none';});
+    canvas.addEventListener('mousemove',e=>{if(!this._sigDrawing)return;e.preventDefault();const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();this._sigHasSig=true;this._updateSigPreview();});
+    canvas.addEventListener('mouseup',()=>this._sigDrawing=false);
+    canvas.addEventListener('mouseleave',()=>this._sigDrawing=false);
+    canvas.addEventListener('touchstart',e=>{e.preventDefault();this._sigDrawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);document.getElementById('sig-placeholder').style.display='none';},{passive:false});
+    canvas.addEventListener('touchmove',e=>{if(!this._sigDrawing)return;e.preventDefault();const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();this._sigHasSig=true;this._updateSigPreview();},{passive:false});
+    canvas.addEventListener('touchend',()=>this._sigDrawing=false);
+  },
+
+  _updateSigPreview() {
+    const canvas=document.getElementById('sig-canvas');
+    const img=document.getElementById('sr-sig-preview');
+    if(this._sigHasSig){img.src=canvas.toDataURL('image/png');img.style.display='';document.getElementById('sr-sig-empty').style.display='none';}
+  },
+
+  clearSig() {
+    const canvas=document.getElementById('sig-canvas');
+    canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+    this._sigHasSig=false; canvas._sigInited=false;
+    document.getElementById('sig-placeholder').style.display='';
+    document.getElementById('sr-sig-preview').style.display='none';
+    document.getElementById('sr-sig-empty').style.display='';
+  },
+
+  async downloadSalesPNG() {
+    const name=document.getElementById('sr-name').value||'客戶';
+    await this._downloadNodeAsPNG('sales-preview',`銷售簽收單_${name}_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.png`);
+  },
+
+  async _downloadNodeAsPNG(nodeId, filename) {
+    const node=document.getElementById(nodeId);
+    if(!node) return;
+    if(typeof html2canvas==='undefined'){
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s.onload=res; s.onerror=rej; document.head.appendChild(s);
+      });
+    }
+    loading(true,'產生圖片中…');
+    try{
+      const canvas=await html2canvas(node,{scale:2.5,useCORS:true,backgroundColor:'#ffffff',logging:false,width:node.scrollWidth,height:node.scrollHeight});
+      const link=document.createElement('a');
+      link.href=canvas.toDataURL('image/png'); link.download=filename; link.click();
+    }catch(e){alert('圖片產生失敗，請確認瀏覽器允許截圖。');console.error(e);}
+    finally{loading(false);}
+  },
+
+  generateSignLink() {
+    const get = id => document.getElementById(id)?.value||'';
+    const data = {
+      docno: document.getElementById('sr-doc-no').textContent,
+      name:    get('sr-name'),    phone:   get('sr-phone'),
+      address: get('sr-address'), model:   get('sr-model'),
+      specs:   get('sr-specs'),   plate:   get('sr-plate'),
+      vin:     get('sr-vin'),     price:   get('sr-price'),
+      payment: get('sr-payment'), date:    get('sr-date'),
+      note:    get('sr-note')
+    };
+    if(!data.name) { alert('請先填寫客戶姓名'); return; }
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    // Point to sign.html in the same directory
+    const base = window.location.href.split('/').slice(0,-1).join('/');
+    const link = `${base}/sign.html#sign=${encoded}`;
+    document.getElementById('signlink-url').value = link;
+    this.openModal('modal-signlink');
+  },
+
+  copySignLink() {
+    const url = document.getElementById('signlink-url').value;
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.getElementById('copy-link-btn');
+      btn.innerHTML = '<i data-lucide="check" width="14" height="14"></i> 已複製';
+      lucide.createIcons();
+      setTimeout(() => { btn.innerHTML = '<i data-lucide="copy" width="14" height="14"></i> 複製'; lucide.createIcons(); }, 2000);
+    }).catch(() => {
+      document.getElementById('signlink-url').select();
+      document.execCommand('copy');
+    });
+  },
+
+  // ---- Settings ----
+  saveApiUrl() {
+    const u = document.getElementById('setting-url').value.trim();
+    API.url = u; localStorage.setItem('diter_api_url', u);
+    API.updateStatus(!!u);
+    alert(u ? '連線設定已儲存' : 'URL 已清除，切換為本地模式');
+  },
+  async initSheets() {
+    loading(true,'初始化工作表…');
+    const res = await API.call('setup');
+    loading(false);
+    alert(res?.status==='success' ? '工作表初始化成功！' : '初始化失敗：' + (res?.message||'未知錯誤'));
+  },
+  exportCSV() {
+    const rows = ['類別,姓名,電話,車型,車牌,購車日期,保固天數'];
+    Store.db.customers.forEach(c => rows.push([c.category==='repair'?'維修':'購車',c.name,c.phone,c.model,c.plate,c.purchaseDate,c.warrantyDays].join(',')));
+    const a = document.createElement('a');
+    a.href = encodeURI('data:text/csv;charset=utf-8,\uFEFF' + rows.join('\n'));
+    a.download = 'diter_customers.csv'; a.click();
+  },
+  clearData() {
+    if(confirm('警告：這將清除所有本地資料且無法復原，確定嗎？')) {
+      localStorage.removeItem('diter_db_v3'); location.reload();
+    }
+  },
+
+  // ---- Modal helpers ----
+  openModal(id) {
+    const el = document.getElementById(id);
+    el.classList.add('open');
+    el.addEventListener('click', e => { if(e.target===el) App.closeModal(id); }, {once:true});
+    lucide.createIcons();
+  },
+  closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+};
+
+// ====================================================
+//  SIGN PAGE (customer-facing)
+// ====================================================
+const SignPage = {
+  data: null,
+  hasSig: false,
+  drawing: false,
+
+  init(encoded) {
+    try {
+      this.data = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+    } catch(e) {
+      document.getElementById('sign-page').innerHTML = '<div style="text-align:center;padding:80px 20px;font-family:sans-serif"><h2 style="color:#ef4444;margin-bottom:12px">連結無效或已過期</h2><p style="color:#64748b">請向迪特軍 EV 重新索取簽名連結。</p></div>';
+      return;
+    }
+
+    const d = this.data;
+    const setText = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v||'—'; };
+    const price = parseInt(d.price)||0;
+
+    setText('sp-docno', d.docno);
+    setText('sp-name',  d.name);
+    setText('sp-phone', d.phone);
+    setText('sp-model', d.model);
+    setText('sp-specs', d.specs||'—');
+    setText('sp-plate', d.plate||'—');
+    setText('sp-payment', d.payment||'—');
+
+    // Address & VIN (show only if filled)
+    if(d.address) { const r=document.getElementById('sp-addr-row'); if(r){r.style.display='flex';document.getElementById('sp-address').textContent=d.address;} }
+    if(d.vin)     { const r=document.getElementById('sp-vin-row');  if(r){r.style.display='flex';document.getElementById('sp-vin').textContent=d.vin;} }
+
+    document.getElementById('sp-price').textContent = price>0 ? 'NT$ '+price.toLocaleString() : 'NT$ —';
+    document.getElementById('sp-date').textContent = d.date ? new Date(d.date).toLocaleDateString('zh-TW') : '—';
+    if(d.note) { const nb=document.getElementById('sp-note-block'); if(nb){nb.textContent='備註：'+d.note; nb.style.display='';} }
+
+    this._initCanvas();
+  },
+
+  _initCanvas() {
+    const canvas = document.getElementById('sp-sig-canvas');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const getPos = e => {
+      const r=canvas.getBoundingClientRect(), sx=canvas.width/r.width, sy=canvas.height/r.height;
+      if(e.touches) return{x:(e.touches[0].clientX-r.left)*sx,y:(e.touches[0].clientY-r.top)*sy};
+      return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};
+    };
+    const start = e => {
+      e.preventDefault(); this.drawing=true;
+      const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y);
+      document.getElementById('sp-sig-placeholder').style.display='none';
+    };
+    const draw = e => {
+      if(!this.drawing) return; e.preventDefault();
+      const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke();
+      this.hasSig=true;
+      document.getElementById('sp-sig-status').textContent='已簽名 ✓';
+      document.getElementById('sp-sig-status').style.color='#16a34a';
+    };
+    const stop = () => this.drawing = false;
+    canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',draw);
+    canvas.addEventListener('mouseup',stop);    canvas.addEventListener('mouseleave',stop);
+    canvas.addEventListener('touchstart',start,{passive:false});
+    canvas.addEventListener('touchmove',draw,{passive:false});
+    canvas.addEventListener('touchend',stop);
+  },
+
+  clearSig() {
+    const canvas = document.getElementById('sp-sig-canvas');
+    canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+    this.hasSig = false;
+    document.getElementById('sp-sig-placeholder').style.display='';
+    document.getElementById('sp-sig-status').textContent='尚未簽名';
+    document.getElementById('sp-sig-status').style.color='#94a3b8';
+  },
+
+  async confirm() {
+    if(!this.hasSig) { alert('請先完成簽名再確認簽收'); return; }
+    const btn = document.getElementById('sp-confirm-btn');
+    btn.textContent = '處理中…'; btn.disabled = true;
+
+    const d = this.data;
+    const price = parseInt(d.price)||0;
+    const sigData = document.getElementById('sp-sig-canvas').toDataURL('image/png');
+    const signTime = new Date().toLocaleString('zh-TW');
+
+    // Fill hidden receipt
+    const setText = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v||''; };
+    setText('sp-r-docno',   d.docno);
+    setText('sp-r-name',    d.name);
+    setText('sp-r-phone',   d.phone);
+    setText('sp-r-address', d.address||'—');
+    setText('sp-r-model',   d.model);
+    setText('sp-r-specs',   d.specs||'—');
+    setText('sp-r-plate',   d.plate||'—');
+    setText('sp-r-vin',     d.vin||'—');
+    setText('sp-r-payment', d.payment||'—');
+    document.getElementById('sp-r-price').textContent = price>0 ? 'NT$ '+price.toLocaleString() : 'NT$ —';
+    setText('sp-r-date',    new Date().toLocaleDateString('zh-TW'));
+    setText('sp-r-datestr', d.date ? new Date(d.date).toLocaleDateString('zh-TW') : '—');
+    setText('sp-r-signame', d.name);
+    setText('sp-r-signtime', signTime);
+    if(d.note) setText('sp-r-note', '備註：'+d.note);
+    const sigImg = document.getElementById('sp-r-sig');
+    sigImg.src = sigData;
+
+    // Load html2canvas if needed
+    if(typeof html2canvas === 'undefined') {
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s.onload=res; s.onerror=rej; document.head.appendChild(s);
+      });
+    }
+
+    // Wait for sig image to load
+    await new Promise(r => { if(sigImg.complete) r(); else sigImg.onload=r; });
+
+    try {
+      const receipt = document.getElementById('sp-receipt');
+      const canvas = await html2canvas(receipt, {
+        scale: 2.5, useCORS: true, backgroundColor: '#ffffff',
+        logging: false, width: receipt.scrollWidth, height: receipt.scrollHeight
+      });
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = `簽收單_${d.name}_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.png`;
+      link.click();
+
+      // Show success state
+      btn.style.background = '#15803d';
+      btn.innerHTML = '✓ 簽收完成！圖片已下載';
+      document.getElementById('sp-confirm-btn').disabled = true;
+      document.querySelector('#sign-page > div').insertAdjacentHTML('beforeend',
+        `<div style="background:#f0fdf4;border:2px solid #86efac;border-radius:12px;padding:16px;text-align:center;margin-top:14px;font-size:13.5px;color:#14532d;font-weight:600">
+          ✓ 簽收完成！<br><span style="font-weight:400;font-size:12px;color:#16a34a;margin-top:4px;display:block">請將下載的圖片傳回給迪特軍 EV 存檔</span>
+        </div>`
+      );
+    } catch(e) {
+      alert('下載失敗，請截圖後傳給店家。');
+      btn.textContent = '確認簽收 · 下載簽收單'; btn.disabled = false;
+      console.error(e);
+    }
+  }
+};
+
+// ====================================================
+//  HASH ROUTER — detect #sign= immediately, before anything else renders
+// ====================================================
+(function() {
+  const hash = window.location.hash;
+  if(!hash.startsWith('#sign=')) return;
+
+  // Mark as sign page immediately
+  window._isSignPage = true;
+  window._signEncoded = hash.slice(6);
+
+  // Add class to body immediately (body tag already exists at this point
+  // since script is at bottom of body)
+  document.body.classList.add('sign-mode');
+
+  // Inject a <style> to hide login/app and show sign page before first paint
+  const style = document.createElement('style');
+  style.textContent = `
+    #login-screen { display: none !important; }
+    #app-shell     { display: none !important; }
+    #sign-page     { display: block !important; }
+  `;
+  document.head.appendChild(style);
+})();
+document.head.insertAdjacentHTML('beforeend','<style>.repair-filter.active-filter{background:var(--accent)!important;color:#fff!important;border-color:var(--accent-dark)!important}</style>');
+
+// ====================================================
+//  AUTH
+// ====================================================
+const Auth = {
+  // SHA-256 hash of "Gerven0530"
+  HASH: 'b0c5b1b1e1e2c2c3d3d4e4e5f5f6a6a7b7b8c8c9d9e9f0a0b1c1d2e2f3a3b4c4',
+  SESSION_HOURS: 12,
+  MAX_TRIES: 3,
+
+  async hash(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  },
+
+  isLoggedIn() {
+    const exp = localStorage.getItem('diter_auth_exp');
+    const tok = localStorage.getItem('diter_auth_tok');
+    if(!exp || !tok) return false;
+    if(Date.now() > parseInt(exp)) { this.logout(); return false; }
+    return tok === this.HASH;
+  },
+
+  async login(pw) {
+    const tries = parseInt(sessionStorage.getItem('diter_tries')||'0');
+    if(tries >= this.MAX_TRIES) return 'locked';
+    const h = await this.hash(pw);
+    if(h === this.HASH) {
+      localStorage.setItem('diter_auth_tok', h);
+      localStorage.setItem('diter_auth_exp', Date.now() + this.SESSION_HOURS*3600000);
+      sessionStorage.removeItem('diter_tries');
+      return 'ok';
+    } else {
+      sessionStorage.setItem('diter_tries', tries+1);
+      return tries+1 >= this.MAX_TRIES ? 'locked' : 'wrong';
+    }
+  },
+
+  logout() {
+    localStorage.removeItem('diter_auth_tok');
+    localStorage.removeItem('diter_auth_exp');
+    location.reload();
+  },
+
+  showLoginScreen() {
+    document.getElementById('app-shell').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    setTimeout(() => document.getElementById('login-pw').focus(), 100);
+  },
+
+  hideLoginScreen() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-shell').style.display = 'flex';
+  }
+};
+
+window.addEventListener('load', async () => {
+  // If this is a customer sign page, init SignPage and stop
+  if(window._isSignPage) {
+    SignPage.init(window._signEncoded);
+    return;
+  }
+
+  // Re-compute real hash and store it for comparison
+  Auth.HASH = await Auth.hash('Gerven0530');
+
+  if(Auth.isLoggedIn()) {
+    Auth.hideLoginScreen();
+    App.init();
+    // Auto-navigate to intake if URL has #import=
+    if(window.location.hash.startsWith('#import=')) {
+      setTimeout(() => App.nav('intake'), 600);
+    }
+  } else {
+    Auth.showLoginScreen();
+  }
+
+  // Login form submit
+  document.getElementById('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const pw = document.getElementById('login-pw').value;
+    const btn = document.getElementById('login-btn');
+    const errEl = document.getElementById('login-err');
+    btn.textContent = '驗證中…'; btn.disabled = true;
+    const result = await Auth.login(pw);
+    btn.disabled = false; btn.textContent = '登入';
+    if(result === 'ok') {
+      document.getElementById('login-screen').style.opacity = '0';
+      document.getElementById('login-screen').style.transition = 'opacity .3s';
+      setTimeout(() => { Auth.hideLoginScreen(); App.init(); }, 300);
+    } else if(result === 'locked') {
+      errEl.textContent = '⚠ 錯誤次數過多，請重新整理頁面後再試。';
+      document.getElementById('login-pw').disabled = true;
+      btn.disabled = true;
+    } else {
+      const left = Auth.MAX_TRIES - parseInt(sessionStorage.getItem('diter_tries')||'0');
+      errEl.textContent = `密碼錯誤，還有 ${left} 次機會。`;
+      document.getElementById('login-pw').value = '';
+      document.getElementById('login-pw').focus();
+    }
+  });
+
+  // Toggle password visibility
+  document.getElementById('toggle-pw').addEventListener('click', () => {
+    const inp = document.getElementById('login-pw');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  });
+});
+</script>
+</body>
+</html>
