@@ -276,7 +276,7 @@ body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: va
       </div>
       <div class="field">
         <label>聯絡電話 <span class="req">*</span></label>
-        <input type="tel" id="f-phone" placeholder="09xxxxxxxx" inputmode="numeric">
+        <input type="tel" id="f-phone" placeholder="手機或電話號碼" inputmode="numeric">
         <span class="field-error">請輸入有效的手機號碼</span>
       </div>
       <div class="field">
@@ -681,7 +681,7 @@ function validateStep(step) {
     const name  = v('f-name');
     const phone = v('f-phone');
     if(!name.trim()) err('f-name'); else clear('f-name');
-    if(!phone.trim() || !/^0\d{8,9}$/.test(phone.replace(/\s|-/g,''))) err('f-phone'); else clear('f-phone');
+    if(!phone.trim() || phone.replace(/\D/g,'').length < 8) err('f-phone'); else clear('f-phone');
   }
   if(step===2) {
     if(!v('f-model').trim()) err('f-model'); else clear('f-model');

@@ -253,6 +253,10 @@ select.form-input { cursor:pointer; }
       <span class="nav-label">維修問卷匯入</span>
       <span class="nav-badge" id="badge-intake" style="display:none;background:#f59e0b">0</span>
     </button>
+    <button class="nav-btn" id="nav-parts" onclick="App.nav('parts')">
+      <i data-lucide="package-search" width="16" height="16" style="flex-shrink:0"></i>
+      <span class="nav-label">零件成本查詢</span>
+    </button>
     <div style="border-top:1px solid rgba(255,255,255,.06);margin:8px 0"></div>
     <button class="nav-btn" id="nav-settings" onclick="App.nav('settings')">
       <i data-lucide="settings" width="16" height="16" style="flex-shrink:0"></i>
@@ -779,6 +783,59 @@ select.form-input { cursor:pointer; }
             尚無待處理問卷<br><span style="font-size:11px;margin-top:4px;display:block">客戶填完問卷後，貼入連結即可在此查看</span>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- PARTS VIEW -->
+    <div id="view-parts" class="view fade-up">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <!-- Quick search -->
+        <div class="card">
+          <h3 style="font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+            <i data-lucide="search" width="14" height="14" style="color:var(--accent)"></i> 快速查詢零件成本
+          </h3>
+          <div style="position:relative;margin-bottom:10px">
+            <i data-lucide="search" width="14" height="14" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted)"></i>
+            <input class="form-input" id="parts-search-input" style="padding-left:32px" placeholder="輸入零件名稱或車型…" oninput="App.renderPartsSearch()">
+          </div>
+          <div id="parts-search-results" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto"></div>
+        </div>
+        <!-- Quick quote -->
+        <div class="card">
+          <h3 style="font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+            <i data-lucide="calculator" width="14" height="14" style="color:var(--accent)"></i> 快速報價計算
+            <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:auto">加價倍數
+              <input type="number" id="parts-markup" value="2" min="1" step="0.1" style="width:52px;border:1px solid var(--border);border-radius:5px;padding:2px 6px;background:var(--bg);color:var(--text);font-family:inherit;font-size:12px;outline:none;margin-left:4px" oninput="App.renderPartsCart()"> ×
+            </span>
+          </h3>
+          <div id="parts-cart-items" style="min-height:80px">
+            <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">從左側搜尋並加入零件</div>
+          </div>
+          <div id="parts-cart-total" style="display:none;background:#f8fafc;border-radius:8px;padding:12px;margin-top:10px;border:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>零件成本</span><span id="pct-cost" style="font-family:'JetBrains Mono',monospace">—</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:900;color:#16a34a;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"><span>建議報價</span><span id="pct-total" style="font-family:'JetBrains Mono',monospace">—</span></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px">
+            <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="App.copyPartsQuote()"><i data-lucide="copy" width="12" height="12"></i> 複製報價</button>
+            <button class="btn btn-ghost btn-sm" onclick="App.clearPartsCart()">清除</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- All parts list -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <h3 style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px">
+            <i data-lucide="database" width="14" height="14" style="color:var(--accent)"></i> 所有零件
+          </h3>
+          <a href="parts_db.html" target="_blank" class="btn btn-ghost btn-sm">
+            <i data-lucide="external-link" width="13" height="13"></i> 開啟完整零件庫
+          </a>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>品項名稱</th><th>適用車型</th><th>類別</th><th>進貨成本</th><th>建議售價(×2)</th><th>庫存</th><th style="text-align:right">操作</th></tr></thead>
+          <tbody id="parts-all-list"></tbody>
+        </table>
       </div>
     </div>
 
@@ -1412,7 +1469,7 @@ const App = {
     void document.getElementById('view-'+v).offsetWidth;
     document.getElementById('view-'+v).classList.add('fade-up');
     this.currentView = v;
-    const titles = {dashboard:'儀表板',customers:'客戶 & 車籍',repairs:'維修工單中心',inventory:'零件庫存',warranty:'保固書製作',sales:'銷售簽收單',intake:'維修問卷匯入',settings:'系統設定'};
+    const titles = {dashboard:'儀表板',customers:'客戶 & 車籍',repairs:'維修工單中心',inventory:'零件庫存',warranty:'保固書製作',sales:'銷售簽收單',intake:'維修問卷匯入',parts:'零件成本查詢',settings:'系統設定'};
     document.getElementById('page-title').textContent = titles[v]||v;
     if(v==='dashboard') this.renderDashboard();
     if(v==='customers') this.renderCustomers();
@@ -1421,6 +1478,7 @@ const App = {
     if(v==='warranty')  this.initWarranty();
     if(v==='sales')     this.initSales();
     if(v==='intake')    this.initIntake();
+    if(v==='parts')     this.initParts();
     lucide.createIcons();
   },
 
@@ -2302,6 +2360,134 @@ const App = {
       document.getElementById('signlink-url').select();
       document.execCommand('copy');
     });
+  },
+
+  // ---- Parts DB (reads from parts_db localStorage) ----
+  _partsCart: [],
+
+  getPartsDB() {
+    try { return JSON.parse(localStorage.getItem('diter_parts_db')||'[]'); } catch { return []; }
+  },
+
+  initParts() {
+    this._partsCart = [];
+    this.renderPartsSearch();
+    this.renderPartsAll();
+    lucide.createIcons();
+  },
+
+  renderPartsSearch() {
+    const q = (document.getElementById('parts-search-input')?.value||'').toLowerCase();
+    const parts = this.getPartsDB().filter(p =>
+      !q || p.name.toLowerCase().includes(q) || (p.vehicle||'').toLowerCase().includes(q)
+    ).slice(0, 15);
+    const el = document.getElementById('parts-search-results');
+    if(!el) return;
+    const catColor = {motor:'#818cf8',battery:'#22c55e',brake:'#fbbf24',tire:'#94a3b8',body:'#a78bfa',other:'#64748b'};
+    if(!parts.length) { el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">${q?'找不到符合零件':'輸入關鍵字搜尋'}</div>`; return; }
+    el.innerHTML = parts.map(p => `
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;background:#f8fafc;border-radius:8px;border:1px solid var(--border)">
+        <div style="width:8px;height:8px;border-radius:50%;background:${catColor[p.category]||'#64748b'};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+          <div style="font-size:11px;color:var(--muted)">${p.vehicle||'—'}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:11px;color:var(--muted)">成本</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#ef4444;font-weight:700">$${Math.round(p.cost||0).toLocaleString()}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="padding:4px 10px;font-size:11px" onclick="App.addToPartsCart('${p.id}')">加入</button>
+      </div>`).join('');
+    lucide.createIcons();
+  },
+
+  addToPartsCart(id) {
+    const p = this.getPartsDB().find(x=>x.id===id);
+    if(!p) return;
+    const ex = this._partsCart.find(c=>c.id===id);
+    if(ex) ex.qty++; else this._partsCart.push({id,name:p.name,cost:parseFloat(p.cost)||0,qty:1});
+    this.renderPartsCart();
+    toast(`已加入：${p.name}`);
+  },
+
+  renderPartsCart() {
+    const el = document.getElementById('parts-cart-items');
+    const totalEl = document.getElementById('parts-cart-total');
+    if(!el) return;
+    const markup = parseFloat(document.getElementById('parts-markup')?.value)||2;
+    if(!this._partsCart.length) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">從左側搜尋並加入零件</div>';
+      if(totalEl) totalEl.style.display='none';
+      return;
+    }
+    const totalCost = this._partsCart.reduce((s,c)=>s+c.cost*c.qty,0);
+    const totalSell = Math.round(totalCost * markup);
+    el.innerHTML = this._partsCart.map(item=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <div style="flex:1;font-size:12.5px;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.name}</div>
+        <input type="number" value="${item.qty}" min="1" style="width:44px;border:1px solid var(--border);border-radius:5px;padding:3px 5px;background:#f8fafc;font-family:'JetBrains Mono',monospace;font-size:12px;text-align:center;outline:none" onchange="App.updatePartsQty('${item.id}',this.value)">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#16a34a;min-width:56px;text-align:right">$${Math.round(item.cost*item.qty*markup).toLocaleString()}</div>
+        <button style="background:none;border:none;cursor:pointer;color:var(--muted);padding:2px;font-size:14px" onclick="App.removeFromPartsCart('${item.id}')">✕</button>
+      </div>`).join('');
+    if(totalEl) {
+      totalEl.style.display='';
+      document.getElementById('pct-cost').textContent  = '$'+Math.round(totalCost).toLocaleString();
+      document.getElementById('pct-total').textContent = '$'+totalSell.toLocaleString();
+    }
+  },
+
+  updatePartsQty(id, val) {
+    const item = this._partsCart.find(c=>c.id===id);
+    if(item) { item.qty=Math.max(1,parseInt(val)||1); this.renderPartsCart(); }
+  },
+
+  removeFromPartsCart(id) {
+    this._partsCart = this._partsCart.filter(c=>c.id!==id);
+    this.renderPartsCart();
+  },
+
+  clearPartsCart() { this._partsCart=[]; this.renderPartsCart(); },
+
+  copyPartsQuote() {
+    if(!this._partsCart.length) { toast('報價單是空的'); return; }
+    const markup = parseFloat(document.getElementById('parts-markup')?.value)||2;
+    const totalCost = this._partsCart.reduce((s,c)=>s+c.cost*c.qty,0);
+    const totalSell = Math.round(totalCost * markup);
+    const text = `【迪特軍 EV 維修報價】\n`+
+      this._partsCart.map(c=>`• ${c.name} × ${c.qty}　$${Math.round(c.cost*c.qty*markup).toLocaleString()}`).join('\n')+
+      `\n${'─'.repeat(20)}\n合計：$${totalSell.toLocaleString()}\n（含零件 + 工資，報價有效 7 天）`;
+    navigator.clipboard.writeText(text).then(()=>toast('✓ 報價已複製，可貼到 LINE'));
+  },
+
+  renderPartsAll() {
+    const tbody = document.getElementById('parts-all-list');
+    if(!tbody) return;
+    const parts = this.getPartsDB();
+    const catLabel = {motor:'馬達/控制',battery:'電池/電系',brake:'煞車',tire:'輪胎',body:'外觀/車身',other:'其他'};
+    if(!parts.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);font-size:13px">
+        零件庫是空的，請先前往<a href="parts_db.html" target="_blank" style="color:var(--accent)">零件成本資料庫</a>新增零件
+      </td></tr>`;
+      return;
+    }
+    tbody.innerHTML = parts.map(p=>{
+      const cost = parseFloat(p.cost)||0;
+      const sell = parseFloat(p.sell)||cost*2;
+      return `<tr>
+        <td style="font-weight:600">${p.name}</td>
+        <td style="color:var(--muted);font-size:12px">${p.vehicle||'—'}</td>
+        <td><span class="badge badge-gray" style="font-size:10px">${catLabel[p.category]||p.category}</span></td>
+        <td style="font-family:'JetBrains Mono',monospace;color:#ef4444;font-weight:700">$${Math.round(cost).toLocaleString()}</td>
+        <td style="font-family:'JetBrains Mono',monospace;color:#16a34a;font-weight:700">$${Math.round(sell).toLocaleString()}</td>
+        <td style="color:var(--muted)">${p.stock||0} 件</td>
+        <td style="text-align:right">
+          <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="App.addToPartsCart('${p.id}')">
+            <i data-lucide="plus" width="11" height="11"></i> 加入報價
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+    lucide.createIcons();
   },
 
   // ---- Settings ----
