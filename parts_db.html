@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>迪特軍 EV · 零件成本資料庫</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --surface3:#2a2f45;
+  --accent:#6366f1; --accent2:#818cf8; --accent-glow:rgba(99,102,241,.25);
+  --green:#22c55e; --green-dim:#16a34a; --yellow:#eab308; --red:#ef4444;
+  --orange:#f97316; --cyan:#06b6d4;
+  --text:#f1f5f9; --muted:#64748b; --muted2:#94a3b8; --border:#2a2f45;
+  --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;}
+
+/* ── Topbar ── */
+#topbar{height:54px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.topbar-brand{display:flex;align-items:center;gap:10px;}
+.brand-icon{background:linear-gradient(135deg,var(--accent),#8b5cf6);padding:7px;border-radius:8px;display:flex;}
+.brand-title{font-size:15px;font-weight:900;color:var(--text);letter-spacing:.02em;}
+.brand-sub{font-size:10px;color:var(--muted);margin-top:1px;}
+.topbar-tabs{display:flex;gap:2px;background:var(--bg);border-radius:8px;padding:3px;}
+.tab{padding:6px 16px;border-radius:6px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s;border:none;background:none;font-family:inherit;}
+.tab:hover{color:var(--text);}
+.tab.active{background:var(--surface2);color:var(--text);}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+
+/* ── Main layout ── */
+#main{display:flex;flex:1;overflow:hidden;}
+
+/* ── Sidebar ── */
+#sidebar{width:260px;min-width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.sidebar-search{padding:12px;}
+.search-wrap{background:var(--bg);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;gap:8px;padding:8px 12px;}
+.search-wrap input{background:none;border:none;outline:none;color:var(--text);font-size:13px;font-family:inherit;flex:1;min-width:0;}
+.search-wrap input::placeholder{color:var(--muted);}
+.filter-bar{padding:0 12px 10px;display:flex;gap:6px;overflow-x:auto;flex-shrink:0;}
+.filter-bar::-webkit-scrollbar{display:none;}
+.fpill{padding:4px 10px;border-radius:99px;border:1px solid var(--border);font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .15s;}
+.fpill:hover{border-color:var(--accent2);color:var(--text);}
+.fpill.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+#parts-list{flex:1;overflow-y:auto;padding:0 8px 12px;}
+#parts-list::-webkit-scrollbar{width:4px;}
+#parts-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.part-item{padding:10px 10px;border-radius:8px;cursor:pointer;transition:background .12s;margin-bottom:2px;display:flex;align-items:center;gap:10px;}
+.part-item:hover{background:var(--surface2);}
+.part-item.active{background:var(--surface3);border-left:3px solid var(--accent);}
+.part-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.part-item-info{flex:1;min-width:0;}
+.part-item-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.part-item-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.part-item-price{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent2);flex-shrink:0;}
+.sidebar-footer{padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:6px;}
+
+/* ── Content area ── */
+#content{flex:1;overflow-y:auto;padding:20px;}
+#content::-webkit-scrollbar{width:5px;}
+#content::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+/* ── Views ── */
+.view{display:none;}
+.view.active{display:block;animation:fadeIn .2s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Part detail ── */
+.detail-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;}
+.detail-title{font-size:22px;font-weight:900;color:var(--text);}
+.detail-sku{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px;}
+.detail-actions{display:flex;gap:8px;}
+.price-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.price-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;}
+.price-card-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px;}
+.price-card-val{font-size:24px;font-weight:900;font-family:var(--mono);}
+.price-card.cost .price-card-val{color:var(--red);}
+.price-card.sell .price-card-val{color:var(--green);}
+.price-card.margin .price-card-val{color:var(--yellow);}
+.price-card.stock .price-card-val{color:var(--cyan);}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+.info-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;}
+.info-card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:12px;}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.info-row:last-child{border-bottom:none;}
+.info-key{color:var(--muted);}
+.info-val{color:var(--text);font-weight:600;}
+.info-val.mono{font-family:var(--mono);}
+.history-table{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.history-table table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.history-table th{padding:10px 14px;text-align:left;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;background:var(--surface2);border-bottom:1px solid var(--border);}
+.history-table td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--muted2);}
+.history-table tr:last-child td{border-bottom:none;}
+.history-table tr:hover td{background:var(--surface2);}
+
+/* ── AI Import ── */
+.ai-drop-zone{border:2px dashed var(--border);border-radius:14px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);}
+.ai-drop-zone:hover,.ai-drop-zone.drag-over{border-color:var(--accent);background:rgba(99,102,241,.06);}
+.ai-drop-zone.processing{border-color:var(--accent);background:rgba(99,102,241,.08);pointer-events:none;}
+.drop-icon{width:56px;height:56px;border-radius:14px;background:var(--surface2);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+.ai-preview-img{max-width:100%;border-radius:10px;margin:14px auto;display:block;max-height:280px;object-fit:contain;}
+.ai-result-table{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:16px;}
+.ai-result-table table{width:100%;border-collapse:collapse;font-size:13px;}
+.ai-result-table th{padding:10px 14px;background:var(--surface2);color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);}
+.ai-result-table td{padding:9px 10px;border-bottom:1px solid var(--border);}
+.ai-result-table tr:last-child td{border-bottom:none;}
+.ai-result-table input{background:var(--surface2);border:1px solid transparent;border-radius:5px;padding:5px 8px;color:var(--text);font-family:inherit;font-size:12.5px;width:100%;outline:none;transition:border-color .12s;}
+.ai-result-table input:focus{border-color:var(--accent);}
+.ai-result-table input.mono{font-family:var(--mono);text-align:right;}
+.ai-result-table select{background:var(--surface2);border:1px solid transparent;border-radius:5px;padding:5px 8px;color:var(--text);font-family:inherit;font-size:12px;outline:none;}
+.row-del{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;border-radius:4px;transition:color .15s;}
+.row-del:hover{color:var(--red);}
+
+/* ── Quotation ── */
+.quote-builder{display:grid;grid-template-columns:1fr 360px;gap:16px;align-items:start;}
+.quote-search-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;}
+.quote-results{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:400px;overflow-y:auto;}
+.quote-result-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface2);border-radius:8px;cursor:pointer;transition:background .12s;}
+.quote-result-item:hover{background:var(--surface3);}
+.quote-cart{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;position:sticky;top:0;}
+.cart-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
+.cart-item:last-of-type{border-bottom:none;}
+.cart-item-name{flex:1;font-size:13px;font-weight:600;}
+.cart-qty{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:3px 6px;color:var(--text);font-family:var(--mono);font-size:12px;width:52px;text-align:center;outline:none;}
+.cart-subtotal{font-family:var(--mono);font-size:12px;color:var(--accent2);min-width:60px;text-align:right;}
+.cart-del{background:none;border:none;cursor:pointer;color:var(--muted);padding:3px;border-radius:4px;transition:color .12s;}
+.cart-del:hover{color:var(--red);}
+.quote-total-box{background:var(--surface2);border-radius:10px;padding:14px;margin-top:12px;}
+.quote-total-row{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;color:var(--muted2);}
+.quote-total-row.final{font-size:16px;font-weight:900;color:var(--text);padding-top:8px;border-top:1px solid var(--border);margin-top:6px;}
+.quote-markup-row{display:flex;align-items:center;gap:8px;margin:10px 0;}
+.markup-label{font-size:12px;color:var(--muted);flex:1;}
+.markup-input{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-family:var(--mono);font-size:13px;width:80px;text-align:center;outline:none;}
+
+/* ── Stats ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;}
+.stat-card::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--glow-color,transparent) 0%,transparent 60%);pointer-events:none;}
+.stat-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px;}
+.stat-val{font-size:28px;font-weight:900;font-family:var(--mono);}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .15s;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:#4f46e5;}
+.btn-green{background:var(--green-dim);color:#fff;}
+.btn-green:hover{background:#15803d;}
+.btn-ghost{background:var(--surface2);color:var(--muted2);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);background:var(--surface3);}
+.btn-danger{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.2);}
+.btn-danger:hover{background:rgba(239,68,68,.25);}
+.btn-sm{padding:5px 11px;font-size:11.5px;border-radius:6px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+
+/* ── Modal ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:center;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:90%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.4);}
+.modal-header{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.modal-body{overflow-y:auto;padding:18px 20px;flex:1;}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:13px;}
+.field:last-child{margin-bottom:0;}
+.field label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
+.field input,.field select,.field textarea{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 11px;color:var(--text);font-family:inherit;font-size:13.5px;outline:none;transition:border-color .15s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field select option{background:var(--surface);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:11px 18px;border-radius:9px;font-size:13px;font-weight:500;opacity:0;transition:opacity .2s;pointer-events:none;z-index:200;max-width:340px;}
+#toast.show{opacity:1;}
+
+/* ── Spinner ── */
+.spinner-inline{width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── Misc ── */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;}
+.badge-blue{background:rgba(99,102,241,.2);color:#a5b4fc;}
+.badge-green{background:rgba(34,197,94,.15);color:#86efac;}
+.badge-yellow{background:rgba(234,179,8,.15);color:#fde047;}
+.badge-red{background:rgba(239,68,68,.15);color:#fca5a5;}
+.badge-gray{background:var(--surface2);color:var(--muted);}
+.empty-state{text-align:center;padding:48px 20px;color:var(--muted);}
+.empty-state svg{opacity:.3;margin-bottom:12px;}
+.section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div id="topbar">
+  <div class="topbar-brand">
+    <div class="brand-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    </div>
+    <div>
+      <div class="brand-title">零件成本資料庫</div>
+      <div class="brand-sub">迪特軍 EV · Parts & Pricing</div>
+    </div>
+  </div>
+  <div class="topbar-tabs">
+    <button class="tab active" onclick="switchTab('database')">零件庫</button>
+    <button class="tab" onclick="switchTab('import')">AI 匯入</button>
+    <button class="tab" onclick="switchTab('quote')">快速報價</button>
+    <button class="tab" onclick="switchTab('stats')">統計</button>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-ghost btn-sm" onclick="openApiKeyModal()" id="apikey-btn" title="設定 Claude API Key">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+      <span id="apikey-btn-label">AI 設定</span>
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="openPartModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      新增零件
+    </button>
+  </div>
+</div>
+
+<div id="main">
+<!-- Sidebar (parts list) -->
+<aside id="sidebar">
+  <div class="sidebar-search">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);flex-shrink:0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="sidebar-search" placeholder="搜尋零件名稱…" oninput="renderSidebar()">
+    </div>
+  </div>
+  <div class="filter-bar" id="filter-bar">
+    <div class="fpill active" data-cat="all" onclick="setFilter(this,'all')">全部</div>
+    <div class="fpill" data-cat="motor" onclick="setFilter(this,'motor')">馬達/控制</div>
+    <div class="fpill" data-cat="battery" onclick="setFilter(this,'battery')">電池/電系</div>
+    <div class="fpill" data-cat="brake" onclick="setFilter(this,'brake')">煞車</div>
+    <div class="fpill" data-cat="tire" onclick="setFilter(this,'tire')">輪胎</div>
+    <div class="fpill" data-cat="body" onclick="setFilter(this,'body')">外觀/車身</div>
+    <div class="fpill" data-cat="other" onclick="setFilter(this,'other')">其他</div>
+  </div>
+  <div id="parts-list"></div>
+  <div class="sidebar-footer">
+    <span style="font-size:11px;color:var(--muted)" id="parts-count">0 筆</span>
+  </div>
+</aside>
+
+<!-- Content -->
+<div id="content">
+
+  <!-- DATABASE TAB -->
+  <div id="tab-database" class="view active">
+    <!-- Detail view -->
+    <div id="detail-view">
+      <div class="empty-state" id="detail-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <div style="font-size:15px;font-weight:700;color:var(--muted2);margin-bottom:6px">選擇零件查看詳細資料</div>
+        <div style="font-size:12px">從左側清單點選，或新增零件</div>
+      </div>
+      <div id="detail-content" style="display:none">
+        <div class="detail-header">
+          <div>
+            <div class="detail-title" id="d-name">—</div>
+            <div class="detail-sku" id="d-sku">—</div>
+          </div>
+          <div class="detail-actions">
+            <button class="btn btn-ghost btn-sm" onclick="editPart()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              編輯
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="deletePart()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              刪除
+            </button>
+          </div>
+        </div>
+        <div class="price-cards">
+          <div class="price-card cost">
+            <div class="price-card-label">進貨成本</div>
+            <div class="price-card-val" id="d-cost">—</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px" id="d-supplier">—</div>
+          </div>
+          <div class="price-card sell">
+            <div class="price-card-label">建議售價（×2）</div>
+            <div class="price-card-val" id="d-sell">—</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px" id="d-markup-label">—</div>
+          </div>
+          <div class="price-card margin">
+            <div class="price-card-label">毛利</div>
+            <div class="price-card-val" id="d-margin">—</div>
+          </div>
+          <div class="price-card stock">
+            <div class="price-card-label">庫存數量</div>
+            <div class="price-card-val" id="d-stock">—</div>
+          </div>
+        </div>
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-card-title">基本資訊</div>
+            <div class="info-row"><span class="info-key">品項名稱</span><span class="info-val" id="d-fullname">—</span></div>
+            <div class="info-row"><span class="info-key">適用車型</span><span class="info-val" id="d-vehicle">—</span></div>
+            <div class="info-row"><span class="info-key">類別</span><span class="info-val" id="d-cat">—</span></div>
+            <div class="info-row"><span class="info-key">品牌/規格</span><span class="info-val" id="d-brand">—</span></div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-title">進貨資訊</div>
+            <div class="info-row"><span class="info-key">供應商</span><span class="info-val" id="d-sup2">—</span></div>
+            <div class="info-row"><span class="info-key">最後進貨價</span><span class="info-val mono" id="d-lastcost">—</span></div>
+            <div class="info-row"><span class="info-key">最後進貨日</span><span class="info-val" id="d-lastdate">—</span></div>
+            <div class="info-row"><span class="info-key">備註</span><span class="info-val" id="d-notes" style="font-size:12px;color:var(--muted2)">—</span></div>
+          </div>
+        </div>
+        <div class="section-title" style="margin-top:4px">進貨歷史紀錄</div>
+        <div class="history-table">
+          <table>
+            <thead><tr><th>日期</th><th>數量</th><th>單價</th><th>供應商</th><th>備註</th></tr></thead>
+            <tbody id="d-history"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI IMPORT TAB -->
+  <div id="tab-import" class="view">
+    <div style="max-width:760px">
+      <div style="margin-bottom:16px">
+        <div style="font-size:18px;font-weight:900;margin-bottom:4px">AI 截圖匯入零件</div>
+        <div style="font-size:13px;color:var(--muted)">上傳廠商報價單截圖，AI 自動辨識品項與價格，確認後批次新增至零件庫</div>
+      </div>
+
+      <!-- API Key status banner -->
+      <div id="ai-key-banner" style="margin-bottom:14px;border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px"></div>
+
+      <!-- Drop zone -->
+      <div class="ai-drop-zone" id="drop-zone" onclick="document.getElementById('img-input').click()" ondrop="handleDrop(event)" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
+        <div class="drop-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <div id="drop-text" style="font-size:14px;font-weight:700;color:var(--muted2);margin-bottom:4px">拖曳截圖到此，或點擊上傳</div>
+        <div style="font-size:12px;color:var(--muted)">支援 JPG、PNG、截圖貼上（Ctrl+V）</div>
+        <img id="preview-img" class="ai-preview-img" style="display:none">
+        <input type="file" id="img-input" accept="image/*" style="display:none" onchange="handleFileSelect(this)">
+      </div>
+
+      <!-- AI parse result -->
+      <div id="ai-result-area" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 10px">
+          <div>
+            <div style="font-size:14px;font-weight:700">AI 辨識結果</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">請確認並修改後批次匯入</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="addResultRow()">＋ 手動新增列</button>
+            <button class="btn btn-green" id="import-btn" onclick="importAll()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              批次匯入零件庫
+            </button>
+          </div>
+        </div>
+        <div class="ai-result-table">
+          <table>
+            <thead>
+              <tr>
+                <th>品項名稱</th>
+                <th>適用車型</th>
+                <th>數量</th>
+                <th>進貨單價</th>
+                <th>建議售價</th>
+                <th>供應商</th>
+                <th>類別</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="result-tbody"></tbody>
+          </table>
+        </div>
+        <div id="supplier-hint" style="margin-top:10px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--accent2)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUOTE TAB -->
+  <div id="tab-quote" class="view">
+    <div style="margin-bottom:16px">
+      <div style="font-size:18px;font-weight:900;margin-bottom:4px">快速報價計算</div>
+      <div style="font-size:13px;color:var(--muted)">搜尋零件加入報價單，自動依加價倍數計算客戶售價</div>
+    </div>
+    <div class="quote-builder">
+      <div>
+        <div class="quote-search-wrap">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px">搜尋零件</div>
+          <div class="search-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);flex-shrink:0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="quote-search" placeholder="輸入零件名稱或車型…" oninput="renderQuoteSearch()">
+          </div>
+          <div id="quote-results" class="quote-results"></div>
+        </div>
+      </div>
+      <div class="quote-cart">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+          報價單
+          <button class="btn btn-ghost btn-sm" onclick="clearCart()">清除</button>
+        </div>
+        <div id="cart-items">
+          <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">搜尋零件加入報價單</div>
+        </div>
+        <div class="quote-markup-row">
+          <span class="markup-label">加價倍數</span>
+          <input class="markup-input" type="number" id="markup" value="2" min="1" step="0.1" oninput="renderCart()">
+          <span style="font-size:12px;color:var(--muted)">×</span>
+        </div>
+        <div class="quote-total-box" id="quote-total-box">
+          <div class="quote-total-row"><span>零件成本小計</span><span id="qt-cost" style="font-family:var(--mono)">—</span></div>
+          <div class="quote-total-row"><span>加價倍數</span><span id="qt-markup" style="font-family:var(--mono)">—</span></div>
+          <div class="quote-total-row"><span>工資（建議）</span><span id="qt-labor" style="font-family:var(--mono);color:var(--yellow)">—</span></div>
+          <div class="quote-total-row final"><span>建議報價</span><span id="qt-total" style="font-family:var(--mono);color:var(--green)">—</span></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <button class="btn btn-primary" style="flex:1;font-size:12px;padding:9px" onclick="copyQuote()">複製報價單</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS TAB -->
+  <div id="tab-stats" class="view">
+    <div style="font-size:18px;font-weight:900;margin-bottom:16px">庫存統計</div>
+    <div class="stats-grid">
+      <div class="stat-card" style="--glow-color:rgba(99,102,241,.15)">
+        <div class="stat-label">總品項數</div>
+        <div class="stat-val" id="st-total" style="color:var(--accent2)">0</div>
+      </div>
+      <div class="stat-card" style="--glow-color:rgba(239,68,68,.1)">
+        <div class="stat-label">總進貨成本</div>
+        <div class="stat-val" id="st-cost" style="color:var(--red);font-size:20px">—</div>
+      </div>
+      <div class="stat-card" style="--glow-color:rgba(34,197,94,.1)">
+        <div class="stat-label">建議售價總值</div>
+        <div class="stat-val" id="st-sell" style="color:var(--green);font-size:20px">—</div>
+      </div>
+      <div class="stat-card" style="--glow-color:rgba(234,179,8,.1)">
+        <div class="stat-label">供應商數量</div>
+        <div class="stat-val" id="st-sup" style="color:var(--yellow)">0</div>
+      </div>
+    </div>
+    <div id="cat-breakdown" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>
+  </div>
+
+</div><!-- /content -->
+</div><!-- /main -->
+
+<!-- Part Modal (Add / Edit) -->
+<div class="modal-bg" id="part-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span style="font-size:14px;font-weight:700" id="part-modal-title">新增零件</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('part-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pm-id">
+      <div class="grid2">
+        <div class="field">
+          <label>品項名稱 *</label>
+          <input type="text" id="pm-name" placeholder="例如：X7 電機">
+        </div>
+        <div class="field">
+          <label>適用車型</label>
+          <input type="text" id="pm-vehicle" placeholder="例如：X7、X9、通用">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>類別</label>
+          <select id="pm-cat">
+            <option value="motor">馬達/控制</option>
+            <option value="battery">電池/電系</option>
+            <option value="brake">煞車</option>
+            <option value="tire">輪胎</option>
+            <option value="body">外觀/車身</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>品牌/規格</label>
+          <input type="text" id="pm-brand" placeholder="選填">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>進貨成本（元）*</label>
+          <input type="number" id="pm-cost" placeholder="0" min="0" oninput="updateModalSell()">
+        </div>
+        <div class="field">
+          <label>建議售價（×2 預填）</label>
+          <input type="number" id="pm-sell" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>目前庫存</label>
+          <input type="number" id="pm-stock" value="0" min="0">
+        </div>
+        <div class="field">
+          <label>供應商</label>
+          <input type="text" id="pm-supplier" placeholder="廠商名稱">
+        </div>
+      </div>
+      <div class="field">
+        <label>備註</label>
+        <textarea id="pm-notes" rows="2" placeholder="選填"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('part-modal')">取消</button>
+      <button class="btn btn-primary" onclick="savePart()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        儲存
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- API Key Modal -->
+<div class="modal-bg" id="apikey-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <span style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        Claude API Key 設定
+      </span>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('apikey-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:12.5px;color:var(--accent2);line-height:1.7">
+        <strong>此為選填功能</strong>，不填仍可正常使用手動新增零件和報價功能。<br>
+        填入後可使用「AI 截圖匯入」自動辨識廠商報價單。<br>
+        Key 只儲存在你的瀏覽器，不會上傳到任何地方。
+      </div>
+      <div class="field">
+        <label>Anthropic API Key</label>
+        <div style="position:relative">
+          <input type="password" id="apikey-input" placeholder="sk-ant-api03-..." style="padding-right:44px;font-family:var(--mono);font-size:12px">
+          <button onclick="toggleKeyVis()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:4px" id="key-vis-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">
+          從 <span style="color:var(--accent2)">console.anthropic.com</span> → API Keys 取得
+        </div>
+      </div>
+      <div id="key-current-status" style="font-size:12px;margin-top:4px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="clearApiKey()" id="key-clear-btn" style="margin-right:auto;display:none">清除 Key</button>
+      <button class="btn btn-ghost" onclick="closeModal('apikey-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveApiKey()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        儲存並啟用
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── API Key Management ─────────────────────────────────────────
+const KEY_STORAGE = 'diter_claude_key';
+
+function getApiKey() { return localStorage.getItem(KEY_STORAGE) || ''; }
+
+function saveApiKey() {
+  const val = document.getElementById('apikey-input').value.trim();
+  if(!val) { toast('請輸入 API Key'); return; }
+  if(!val.startsWith('sk-ant-')) {
+    toast('⚠ Key 格式不正確，應以 sk-ant- 開頭'); return;
+  }
+  localStorage.setItem(KEY_STORAGE, val);
+  closeModal('apikey-modal');
+  updateKeyStatus();
+  toast('✅ API Key 已儲存，AI 截圖匯入已啟用');
+}
+
+function clearApiKey() {
+  if(!confirm('確定要清除 API Key？清除後 AI 截圖匯入功能將停用。')) return;
+  localStorage.removeItem(KEY_STORAGE);
+  document.getElementById('apikey-input').value = '';
+  closeModal('apikey-modal');
+  updateKeyStatus();
+  toast('API Key 已清除');
+}
+
+function toggleKeyVis() {
+  const inp = document.getElementById('apikey-input');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function openApiKeyModal() {
+  const key = getApiKey();
+  document.getElementById('apikey-input').value = key ? key.substring(0,12)+'…'+key.slice(-4) : '';
+  document.getElementById('key-clear-btn').style.display = key ? '' : 'none';
+  document.getElementById('key-current-status').innerHTML = key
+    ? `<span style="color:var(--green)">● 目前已設定 API Key，AI 功能啟用中</span>`
+    : `<span style="color:var(--muted)">● 尚未設定，AI 截圖匯入功能停用</span>`;
+  openModal('apikey-modal');
+  // Clear the masked display so user can type new key
+  setTimeout(() => {
+    const inp = document.getElementById('apikey-input');
+    if(inp.value.includes('…')) inp.value = '';
+  }, 100);
+}
+
+function updateKeyStatus() {
+  const key = getApiKey();
+  const btn = document.getElementById('apikey-btn');
+  const label = document.getElementById('apikey-btn-label');
+
+  if(key) {
+    label.textContent = 'AI ✓';
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'rgba(34,197,94,.3)';
+  } else {
+    label.textContent = 'AI 設定';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+  }
+
+  // Update banner in import tab
+  const banner = document.getElementById('ai-key-banner');
+  if(!banner) return;
+  if(key) {
+    banner.style.background = 'rgba(34,197,94,.08)';
+    banner.style.border = '1px solid rgba(34,197,94,.2)';
+    banner.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#86efac">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span><strong>AI 功能已啟用</strong>，上傳截圖即可自動辨識</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="openApiKeyModal()" style="font-size:11px;flex-shrink:0">管理 Key</button>`;
+  } else {
+    banner.style.background = 'rgba(99,102,241,.06)';
+    banner.style.border = '1px solid rgba(99,102,241,.15)';
+    banner.innerHTML = `
+      <div style="font-size:13px;color:var(--muted2)">
+        <strong style="color:var(--accent2)">AI 截圖匯入</strong> 尚未啟用，設定 API Key 後可使用。不設定也可以手動新增零件。
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openApiKeyModal()" style="flex-shrink:0;font-size:12px">設定 API Key</button>`;
+  }
+}
+
+// ── API (Claude Vision) ────────────────────────────────────────
+async function analyzeImage(base64, mediaType) {
+  const key = getApiKey();
+  if(!key) {
+    toast('請先設定 Claude API Key 才能使用 AI 辨識功能');
+    openApiKeyModal();
+    throw new Error('No API Key');
+  }
+
+  const systemPrompt = `你是一個專業的電動車零件進貨單辨識系統。
+分析圖片中的報價單/訂單，提取所有零件品項資訊。
+只回傳 JSON 陣列，格式如下，不要加任何其他文字或 markdown：
+[{"name":"品項名稱","vehicle":"適用車型(如X7/X9/通用)","qty":數量,"cost":進貨單價數字,"supplier":"供應商名稱或空字串","category":"motor|battery|brake|tire|body|other"}]
+category 規則：馬達/控制器/儀表→motor，電池/充電→battery，煞車/來令→brake，輪胎→tire，外觀/車架→body，其他→other
+若看不出適用車型，填"通用"。若單價不明確，填0。`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{
+        role: 'user',
+        content: [{
+          type: 'image',
+          source: { type: 'base64', media_type: mediaType, data: base64 }
+        }, {
+          type: 'text',
+          text: '請辨識此報價單/訂單中的所有零件品項、數量和單價。'
+        }]
+      }]
+    })
+  });
+  const data = await res.json();
+  if(data.error) throw new Error(data.error.message || 'API 錯誤');
+  const text = data.content?.[0]?.text || '[]';
+  try { return JSON.parse(text.replace(/```json|```/g, '').trim()); }
+  catch(e) { console.error('Parse error:', text); return []; }
+}
+
+// ── Data (localStorage) ────────────────────────────────────────
+const DB = {
+  load() { try { return JSON.parse(localStorage.getItem('diter_parts_db') || '[]'); } catch { return []; } },
+  save(parts) { localStorage.setItem('diter_parts_db', JSON.stringify(parts)); },
+  get() { return this.load(); },
+  upsert(part) {
+    const parts = this.load();
+    const idx = parts.findIndex(p => p.id === part.id);
+    if(idx >= 0) parts[idx] = part; else parts.push(part);
+    this.save(parts);
+  },
+  delete(id) {
+    const parts = this.load().filter(p => p.id !== id);
+    this.save(parts);
+  }
+};
+
+const gid = () => '_' + Math.random().toString(36).substr(2,9);
+const fmt$ = n => { const v = Math.round(n||0); return '$' + v.toLocaleString(); };
+const CAT_LABELS = { motor:'馬達/控制', battery:'電池/電系', brake:'煞車', tire:'輪胎', body:'外觀/車身', other:'其他' };
+const CAT_COLORS = { motor:'badge-blue', battery:'badge-green', brake:'badge-yellow', tire:'badge-gray', body:'badge-gray', other:'badge-gray' };
+const DOT_COLORS = { motor:'#818cf8', battery:'#22c55e', brake:'#fbbf24', tire:'#94a3b8', body:'#a78bfa', other:'#64748b' };
+
+let currentFilter = 'all';
+let selectedId = null;
+let cart = [];
+
+// ── Sidebar ────────────────────────────────────────────────────
+function setFilter(el, cat) {
+  currentFilter = cat;
+  document.querySelectorAll('.fpill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderSidebar();
+}
+
+function renderSidebar() {
+  const q = document.getElementById('sidebar-search').value.toLowerCase();
+  const parts = DB.get().filter(p => {
+    const matchCat = currentFilter === 'all' || p.category === currentFilter;
+    const matchQ   = !q || p.name.toLowerCase().includes(q) || (p.vehicle||'').toLowerCase().includes(q) || (p.supplier||'').toLowerCase().includes(q);
+    return matchCat && matchQ;
+  }).sort((a,b) => a.name.localeCompare(b.name));
+
+  const list = document.getElementById('parts-list');
+  document.getElementById('parts-count').textContent = parts.length + ' 筆';
+
+  if(!parts.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:24px"><div style="font-size:12px">找不到符合的零件</div></div>';
+    return;
+  }
+
+  list.innerHTML = parts.map(p => `
+    <div class="part-item ${p.id===selectedId?'active':''}" onclick="selectPart('${p.id}')">
+      <div class="part-dot" style="background:${DOT_COLORS[p.category]||'#64748b'}"></div>
+      <div class="part-item-info">
+        <div class="part-item-name">${p.name}</div>
+        <div class="part-item-sub">${p.vehicle||'—'} · ${CAT_LABELS[p.category]||p.category}</div>
+      </div>
+      <div class="part-item-price">${fmt$(p.cost)}</div>
+    </div>`).join('');
+}
+
+function selectPart(id) {
+  selectedId = id;
+  renderSidebar();
+  renderDetail();
+  if(document.getElementById('tab-database').classList.contains('active')) return;
+  switchTab('database');
+}
+
+function renderDetail() {
+  const p = DB.get().find(x => x.id === selectedId);
+  document.getElementById('detail-empty').style.display   = p ? 'none'  : '';
+  document.getElementById('detail-content').style.display = p ? ''      : 'none';
+  if(!p) return;
+
+  const cost = parseFloat(p.cost)||0;
+  const sell = parseFloat(p.sell) || cost * 2;
+  const markup = cost > 0 ? (sell/cost).toFixed(1) : '—';
+  const margin = sell - cost;
+
+  document.getElementById('d-name').textContent       = p.name;
+  document.getElementById('d-sku').textContent        = `ID: ${p.id} · ${CAT_LABELS[p.category]||p.category}`;
+  document.getElementById('d-cost').textContent       = fmt$(cost);
+  document.getElementById('d-sell').textContent       = fmt$(sell);
+  document.getElementById('d-margin').textContent     = fmt$(margin);
+  document.getElementById('d-stock').textContent      = (p.stock||0) + ' 件';
+  document.getElementById('d-supplier').textContent   = p.supplier || '未指定供應商';
+  document.getElementById('d-markup-label').textContent = `加價 ×${markup}`;
+  document.getElementById('d-fullname').textContent   = p.name;
+  document.getElementById('d-vehicle').textContent    = p.vehicle || '—';
+  document.getElementById('d-cat').innerHTML          = `<span class="badge ${CAT_COLORS[p.category]}">${CAT_LABELS[p.category]||p.category}</span>`;
+  document.getElementById('d-brand').textContent      = p.brand || '—';
+  document.getElementById('d-sup2').textContent       = p.supplier || '—';
+  document.getElementById('d-lastcost').textContent   = fmt$(cost);
+  document.getElementById('d-lastdate').textContent   = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('zh-TW') : '—';
+  document.getElementById('d-notes').textContent      = p.notes || '無';
+
+  const hBody = document.getElementById('d-history');
+  const hist  = p.history || [];
+  hBody.innerHTML = hist.length
+    ? [...hist].reverse().map(h => `<tr>
+        <td>${new Date(h.date).toLocaleDateString('zh-TW')}</td>
+        <td>${h.qty||1}</td>
+        <td style="font-family:var(--mono)">${fmt$(h.cost)}</td>
+        <td>${h.supplier||'—'}</td>
+        <td style="color:var(--muted)">${h.note||''}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">尚無進貨紀錄</td></tr>';
+}
+
+// ── Part CRUD ──────────────────────────────────────────────────
+function openPartModal(prefill) {
+  document.getElementById('pm-id').value     = prefill?.id     || '';
+  document.getElementById('pm-name').value   = prefill?.name   || '';
+  document.getElementById('pm-vehicle').value= prefill?.vehicle|| '';
+  document.getElementById('pm-cat').value    = prefill?.category||'other';
+  document.getElementById('pm-brand').value  = prefill?.brand  || '';
+  document.getElementById('pm-cost').value   = prefill?.cost   || '';
+  document.getElementById('pm-sell').value   = prefill?.sell   || '';
+  document.getElementById('pm-stock').value  = prefill?.stock  || 0;
+  document.getElementById('pm-supplier').value = prefill?.supplier || '';
+  document.getElementById('pm-notes').value  = prefill?.notes  || '';
+  document.getElementById('part-modal-title').textContent = prefill?.id ? '編輯零件' : '新增零件';
+  openModal('part-modal');
+}
+
+function updateModalSell() {
+  const cost = parseFloat(document.getElementById('pm-cost').value)||0;
+  if(cost > 0) document.getElementById('pm-sell').value = Math.round(cost * 2);
+}
+
+function editPart() {
+  const p = DB.get().find(x => x.id === selectedId);
+  if(p) openPartModal(p);
+}
+
+function savePart() {
+  const name = document.getElementById('pm-name').value.trim();
+  const cost = parseFloat(document.getElementById('pm-cost').value)||0;
+  if(!name) { toast('請填寫品項名稱'); return; }
+
+  const existing = DB.get().find(p => p.id === document.getElementById('pm-id').value);
+  const id = document.getElementById('pm-id').value || gid();
+  const now = new Date().toISOString();
+
+  const part = {
+    id,
+    name,
+    vehicle:  document.getElementById('pm-vehicle').value,
+    category: document.getElementById('pm-cat').value,
+    brand:    document.getElementById('pm-brand').value,
+    cost,
+    sell:     parseFloat(document.getElementById('pm-sell').value) || cost * 2,
+    stock:    parseInt(document.getElementById('pm-stock').value)||0,
+    supplier: document.getElementById('pm-supplier').value,
+    notes:    document.getElementById('pm-notes').value,
+    updatedAt: now,
+    createdAt: existing?.createdAt || now,
+    history:  existing?.history || []
+  };
+
+  // Add history entry if cost changed
+  if(!existing || existing.cost !== cost) {
+    part.history = [...(existing?.history||[]), {
+      date: now, cost, qty: part.stock,
+      supplier: part.supplier, note: '手動更新'
+    }];
+  }
+
+  DB.upsert(part);
+  selectedId = id;
+  closeModal('part-modal');
+  renderSidebar();
+  renderDetail();
+  updateStats();
+  toast('✓ 零件資料已儲存');
+}
+
+function deletePart() {
+  const p = DB.get().find(x => x.id === selectedId);
+  if(!p) return;
+  if(!confirm(`確定刪除「${p.name}」？`)) return;
+  DB.delete(selectedId);
+  selectedId = null;
+  renderSidebar();
+  renderDetail();
+  updateStats();
+  toast('已刪除');
+}
+
+// ── Tab switching ──────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const tabs = ['database','import','quote','stats'];
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  if(tab === 'quote') renderQuoteSearch();
+  if(tab === 'stats') updateStats();
+}
+
+// ── AI Import ──────────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if(file && file.type.startsWith('image/')) processImage(file);
+}
+
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if(file) processImage(file);
+}
+
+// Paste support
+document.addEventListener('paste', e => {
+  if(!document.getElementById('tab-import').classList.contains('active')) return;
+  const item = [...(e.clipboardData?.items||[])].find(i => i.type.startsWith('image/'));
+  if(item) processImage(item.getAsFile());
+});
+
+async function processImage(file) {
+  const dz   = document.getElementById('drop-zone');
+  const pImg = document.getElementById('preview-img');
+  const dropText = document.getElementById('drop-text');
+
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = e => { pImg.src = e.target.result; pImg.style.display='block'; };
+  reader.readAsDataURL(file);
+
+  dz.classList.add('processing');
+  dropText.innerHTML = `<div style="display:flex;align-items:center;gap:8px;justify-content:center"><span class="spinner-inline"></span> AI 分析中，請稍候…</div>`;
+
+  // Convert to base64
+  const b64 = await new Promise(res => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result.split(',')[1]);
+    r.readAsDataURL(file);
+  });
+
+  try {
+    const items = await analyzeImage(b64, file.type);
+    dz.classList.remove('processing');
+    dropText.innerHTML = `✓ 已辨識 ${items.length} 個品項`;
+    renderResultTable(items, file.name);
+  } catch(e) {
+    dz.classList.remove('processing');
+    dropText.innerHTML = '⚠ 辨識失敗，請重試';
+    console.error(e);
+    toast('AI 辨識失敗：' + e.message);
+  }
+}
+
+function renderResultTable(items, filename) {
+  const tbody = document.getElementById('result-tbody');
+  const hint  = document.getElementById('supplier-hint');
+
+  document.getElementById('ai-result-area').style.display = '';
+
+  // Guess supplier from filename
+  const supGuess = filename ? filename.replace(/\.[^.]+$/,'').substring(0,20) : '';
+  if(supGuess) hint.textContent = `💡 偵測到檔名：${supGuess}，已預填供應商欄位，可手動修改`;
+
+  tbody.innerHTML = items.map((item, i) => `
+    <tr id="rrow-${i}">
+      <td><input value="${esc(item.name||'')}" oninput="" data-f="name" data-i="${i}"></td>
+      <td><input value="${esc(item.vehicle||'通用')}" data-f="vehicle" data-i="${i}" style="width:80px"></td>
+      <td><input type="number" value="${item.qty||1}" class="mono" data-f="qty" data-i="${i}" style="width:60px"></td>
+      <td><input type="number" value="${item.cost||0}" class="mono" data-f="cost" data-i="${i}" oninput="autoFillSell(${i})" style="width:80px"></td>
+      <td><input type="number" id="sell-${i}" value="${Math.round((item.cost||0)*2)}" class="mono" data-f="sell" data-i="${i}" style="width:80px"></td>
+      <td><input value="${esc(item.supplier||supGuess)}" data-f="supplier" data-i="${i}" style="width:100px"></td>
+      <td>
+        <select data-f="category" data-i="${i}">
+          ${Object.entries(CAT_LABELS).map(([k,v]) => `<option value="${k}" ${k===item.category?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </td>
+      <td><button class="row-del" onclick="delResultRow(${i})">✕</button></td>
+    </tr>`).join('');
+}
+
+function autoFillSell(i) {
+  const costInput = document.querySelector(`[data-f="cost"][data-i="${i}"]`);
+  const sellInput = document.getElementById('sell-'+i);
+  if(costInput && sellInput) {
+    sellInput.value = Math.round(parseFloat(costInput.value||0) * 2);
+  }
+}
+
+function delResultRow(i) {
+  const row = document.getElementById('rrow-'+i);
+  if(row) row.remove();
+}
+
+function addResultRow() {
+  const tbody = document.getElementById('result-tbody');
+  const i = Date.now();
+  const tr = document.createElement('tr');
+  tr.id = 'rrow-'+i;
+  tr.innerHTML = `
+    <td><input value="" data-f="name" data-i="${i}" placeholder="品項名稱"></td>
+    <td><input value="通用" data-f="vehicle" data-i="${i}" style="width:80px"></td>
+    <td><input type="number" value="1" class="mono" data-f="qty" data-i="${i}" style="width:60px"></td>
+    <td><input type="number" value="0" class="mono" data-f="cost" data-i="${i}" oninput="autoFillSell(${i})" style="width:80px"></td>
+    <td><input type="number" id="sell-${i}" value="0" class="mono" data-f="sell" data-i="${i}" style="width:80px"></td>
+    <td><input value="" data-f="supplier" data-i="${i}" style="width:100px"></td>
+    <td><select data-f="category" data-i="${i}">${Object.entries(CAT_LABELS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></td>
+    <td><button class="row-del" onclick="this.closest('tr').remove()">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function importAll() {
+  const rows = document.querySelectorAll('#result-tbody tr');
+  if(!rows.length) { toast('沒有可匯入的資料'); return; }
+
+  let count = 0;
+  rows.forEach(tr => {
+    const get = f => tr.querySelector(`[data-f="${f}"]`)?.value?.trim() || '';
+    const name = get('name');
+    if(!name) return;
+    const cost = parseFloat(get('cost'))||0;
+    const now  = new Date().toISOString();
+    const part = {
+      id: gid(), name,
+      vehicle:  get('vehicle'),
+      category: get('category'),
+      brand: '', notes: '',
+      cost, sell: parseFloat(get('sell')) || cost * 2,
+      stock:    parseInt(get('qty'))||0,
+      supplier: get('supplier'),
+      updatedAt: now, createdAt: now,
+      history: [{ date:now, cost, qty:parseInt(get('qty'))||1, supplier:get('supplier'), note:'AI 截圖匯入' }]
+    };
+    DB.upsert(part);
+    count++;
+  });
+
+  renderSidebar();
+  updateStats();
+  document.getElementById('ai-result-area').style.display = 'none';
+  document.getElementById('preview-img').style.display = 'none';
+  document.getElementById('drop-text').innerHTML = '拖曳截圖到此，或點擊上傳';
+  document.getElementById('drop-zone').classList.remove('processing');
+  toast(`✓ 成功匯入 ${count} 筆零件資料`);
+}
+
+// ── Quotation ──────────────────────────────────────────────────
+function renderQuoteSearch() {
+  const q = (document.getElementById('quote-search').value||'').toLowerCase();
+  const parts = DB.get().filter(p =>
+    !q || p.name.toLowerCase().includes(q) || (p.vehicle||'').toLowerCase().includes(q)
+  ).slice(0, 20);
+
+  const res = document.getElementById('quote-results');
+  if(!q) { res.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0">輸入搜尋關鍵字…</div>'; return; }
+  if(!parts.length) { res.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0">找不到符合零件</div>'; return; }
+
+  res.innerHTML = parts.map(p => `
+    <div class="quote-result-item" onclick="addToCart('${p.id}')">
+      <div>
+        <div style="font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:11px;color:var(--muted)">${p.vehicle||'—'} · ${CAT_LABELS[p.category]||''}</div>
+      </div>
+      <div style="font-family:var(--mono);font-size:13px;color:var(--red)">${fmt$(p.cost)}</div>
+    </div>`).join('');
+}
+
+function addToCart(id) {
+  const p = DB.get().find(x => x.id === id);
+  if(!p) return;
+  const existing = cart.find(c => c.id === id);
+  if(existing) { existing.qty++; } else { cart.push({id, name:p.name, cost:p.cost, qty:1}); }
+  renderCart();
+  toast(`已加入：${p.name}`);
+}
+
+function renderCart() {
+  const container = document.getElementById('cart-items');
+  const markup    = parseFloat(document.getElementById('markup').value)||2;
+
+  if(!cart.length) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">搜尋零件加入報價單</div>';
+    document.getElementById('qt-cost').textContent = '—';
+    document.getElementById('qt-markup').textContent = '—';
+    document.getElementById('qt-labor').textContent = '—';
+    document.getElementById('qt-total').textContent = '—';
+    return;
+  }
+
+  const totalCost = cart.reduce((s,c) => s + c.cost * c.qty, 0);
+  const totalSell = Math.round(totalCost * markup);
+  const labor     = Math.round(totalCost * (markup - 1) * 0.3); // ~30% of profit as suggested labor
+
+  container.innerHTML = cart.map(item => `
+    <div class="cart-item">
+      <div class="cart-item-name">${item.name}</div>
+      <input class="cart-qty" type="number" value="${item.qty}" min="1"
+        onchange="updateQty('${item.id}',this.value)" style="width:48px">
+      <div class="cart-subtotal">${fmt$(item.cost * item.qty)}</div>
+      <button class="cart-del" onclick="removeFromCart('${item.id}')">✕</button>
+    </div>`).join('');
+
+  document.getElementById('qt-cost').textContent    = fmt$(totalCost);
+  document.getElementById('qt-markup').textContent  = '×' + markup;
+  document.getElementById('qt-labor').textContent   = '含工資 ' + fmt$(totalSell - totalCost);
+  document.getElementById('qt-total').textContent   = fmt$(totalSell);
+}
+
+function updateQty(id, val) {
+  const item = cart.find(c => c.id === id);
+  if(item) { item.qty = Math.max(1, parseInt(val)||1); renderCart(); }
+}
+
+function removeFromCart(id) {
+  cart = cart.filter(c => c.id !== id);
+  renderCart();
+}
+
+function clearCart() { cart = []; renderCart(); }
+
+function copyQuote() {
+  if(!cart.length) { toast('報價單是空的'); return; }
+  const markup = parseFloat(document.getElementById('markup').value)||2;
+  const totalCost = cart.reduce((s,c) => s + c.cost * c.qty, 0);
+  const totalSell = Math.round(totalCost * markup);
+  const lines = cart.map(c => `• ${c.name} × ${c.qty}  ${fmt$(c.cost * c.qty * markup / totalCost * totalSell / totalSell * c.cost * c.qty / totalCost * markup)}`);
+  // Simple: just list items with sell price per unit
+  const text = `【迪特軍 EV 維修報價】\n` +
+    cart.map(c => `• ${c.name} × ${c.qty}　${fmt$(Math.round(c.cost * c.qty * markup))}`).join('\n') +
+    `\n${'─'.repeat(24)}\n合計：${fmt$(totalSell)}\n（含零件 + 工資，報價有效 7 天）`;
+  navigator.clipboard.writeText(text).then(() => toast('✓ 報價單已複製，可直接貼到 LINE'));
+}
+
+// ── Stats ──────────────────────────────────────────────────────
+function updateStats() {
+  const parts = DB.get();
+  const totalCost = parts.reduce((s,p) => s + (p.cost||0) * (p.stock||1), 0);
+  const totalSell = parts.reduce((s,p) => s + (p.sell||p.cost*2||0) * (p.stock||1), 0);
+  const suppliers = new Set(parts.map(p=>p.supplier).filter(Boolean));
+
+  document.getElementById('st-total').textContent = parts.length;
+  document.getElementById('st-cost').textContent  = '$' + Math.round(totalCost).toLocaleString();
+  document.getElementById('st-sell').textContent  = '$' + Math.round(totalSell).toLocaleString();
+  document.getElementById('st-sup').textContent   = suppliers.size;
+
+  // Category breakdown
+  const bd = document.getElementById('cat-breakdown');
+  const byCat = {};
+  parts.forEach(p => { byCat[p.category] = (byCat[p.category]||0) + 1; });
+  bd.innerHTML = Object.entries(CAT_LABELS).map(([k,v]) => `
+    <div class="stat-card">
+      <div class="stat-label">${v}</div>
+      <div style="font-size:22px;font-weight:900;font-family:var(--mono);color:${DOT_COLORS[k]}">${byCat[k]||0}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">品項</div>
+    </div>`).join('');
+}
+
+// ── Modal helpers ──────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(m => {
+  m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); });
+});
+
+let _toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+// ── Init ───────────────────────────────────────────────────────
+renderSidebar();
+updateStats();
+updateKeyStatus();
+</script>
+</body>
+</html>
