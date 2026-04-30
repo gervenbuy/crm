@@ -1328,6 +1328,28 @@ select.form-input { cursor:pointer; }
   </div>
 </div>
 
+<!-- Customer Quick View Modal -->
+<div id="modal-customer-quick" class="modal-backdrop">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-header">
+      <h3 style="font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px">
+        <i data-lucide="user" width="15" height="15" style="color:var(--accent)"></i>
+        客戶聯絡資料
+      </h3>
+      <button class="btn btn-ghost btn-icon" onclick="App.closeModal('modal-customer-quick')"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div id="cqv-content" style="padding:20px 24px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="App.closeModal('modal-customer-quick')">關閉</button>
+      <button class="btn btn-primary" id="cqv-goto-btn" onclick="">
+        <i data-lucide="arrow-right" width="14" height="14"></i> 前往客戶頁面
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Confirm Delete Modal -->
 <div id="modal-confirm" class="modal-backdrop">
   <div class="modal-box" style="max-width:400px">
@@ -1680,6 +1702,24 @@ const App = {
               <span class="badge ${tcls}" style="font-size:10px">${tmap[r.type]||'—'}</span>
               <span class="badge ${scls}" style="font-size:10px">${stxt}</span>
             </div>
+            <!-- 客戶聯絡資訊（快速查看）-->
+            <div style="display:inline-flex;align-items:center;gap:12px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:6px 12px;margin-bottom:8px;flex-wrap:wrap">
+              ${c.phone ? `
+                <a href="tel:${c.phone}" style="display:flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none;font-family:'JetBrains Mono',monospace" title="點擊撥打">
+                  <i data-lucide="phone" width="13" height="13"></i>${c.phone}
+                </a>` : `<span style="font-size:12px;color:var(--muted)">無電話</span>`}
+              ${c.notes && c.notes.includes('LINE:') ? `
+                <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:#16a34a;font-weight:600">
+                  <i data-lucide="message-circle" width="13" height="13"></i>${c.notes.match(/LINE:\s*(\S+)/)?.[1]||''}
+                </span>` : ''}
+              ${c.address ? `
+                <span style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted)">
+                  <i data-lucide="map-pin" width="12" height="12"></i>${c.address}
+                </span>` : ''}
+              <button onclick="App.showCustomerQuickView('${c.id||''}')" style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-light);border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-family:inherit">
+                <i data-lucide="user" width="11" height="11"></i> 完整資料
+              </button>
+            </div>
             <p style="font-size:13.5px;color:var(--text);margin-bottom:6px">${r.description||'—'}</p>
             <div style="display:flex;gap:14px;font-size:11px;color:var(--muted)">
               <span style="display:flex;align-items:center;gap:3px"><i data-lucide="calendar" width="11" height="11"></i> ${fmtDate(r.date)}</span>
@@ -1921,6 +1961,66 @@ const App = {
       this.nav(this.currentView); this.updateKPIs();
     };
     this.openModal('modal-confirm');
+  },
+
+  showCustomerQuickView(custId) {
+    if(!custId) { toast('找不到客戶資料'); return; }
+    const c = Store.db.customers.find(x=>x.id===custId);
+    if(!c) { toast('客戶資料不存在'); return; }
+
+    const w = warranty(c);
+    const repairs = Store.db.repairs.filter(r=>r.customerId===custId);
+    const lastRepair = repairs.sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+    const totalSpent = repairs.filter(r=>r.status==='completed').reduce((s,r)=>s+(parseInt(r.totalCost)||0),0);
+
+    const row = (icon,label,val,extra='') => val ? `
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+        <i data-lucide="${icon}" width="14" height="14" style="color:var(--muted);flex-shrink:0"></i>
+        <span style="color:var(--muted);font-size:12px;width:56px;flex-shrink:0">${label}</span>
+        <span style="font-weight:600;font-size:13.5px;flex:1">${val}</span>
+        ${extra}
+      </div>` : '';
+
+    const phoneLink = c.phone ? `<a href="tel:${c.phone}" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none;font-family:inherit;display:inline-flex;align-items:center;gap:4px"><i data-lucide="phone-call" width="11" height="11"></i>撥打</a>` : '';
+
+    const lineId = c.notes?.match(/LINE:\s*(\S+)/)?.[1];
+    const lineLink = lineId ? `<a href="https://line.me/ti/p/~${lineId}" target="_blank" style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none;font-family:inherit;display:inline-flex;align-items:center;gap:4px"><i data-lucide="message-circle" width="11" height="11"></i>LINE</a>` : '';
+
+    document.getElementById('cqv-content').innerHTML = `
+      <div style="background:linear-gradient(135deg,#0c1a35,#1e3a6e);border-radius:10px;padding:16px 18px;margin-bottom:16px;display:flex;align-items:center;gap:14px">
+        <div style="width:46px;height:46px;border-radius:50%;background:rgba(99,130,246,.3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff;flex-shrink:0">${(c.name||'?')[0]}</div>
+        <div>
+          <div style="color:#fff;font-size:18px;font-weight:900">${c.name||'—'}</div>
+          <div style="color:#93c5fd;font-size:12px;margin-top:2px">${c.category==='purchase'?'購車客戶':'維修客戶'} · ${c.model||'—'}</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          ${phoneLink}${lineLink}
+        </div>
+      </div>
+      <div style="padding:0 2px">
+        ${row('phone','電話',c.phone,phoneLink)}
+        ${row('message-circle','LINE',lineId,lineLink)}
+        ${row('map-pin','地址',c.address)}
+        ${row('zap','車型',c.model+(c.specs?' · '+c.specs:''))}
+        ${row('hash','車牌',c.plate)}
+        ${row('shield-check','保固',c.category==='purchase'?(w.ok?`保固中，剩 ${w.days} 天（到 ${w.end}）`:'已過期'):'—')}
+        ${row('clock','最後服務',lastRepair?fmtDate(lastRepair.date):'無紀錄')}
+        ${totalSpent>0?row('dollar-sign','累計消費','NT$ '+totalSpent.toLocaleString(),''):''}
+        ${c.notes&&!c.notes.startsWith('LINE:')?row('file-text','備註',c.notes):''}
+      </div>`;
+
+    // Set goto button
+    document.getElementById('cqv-goto-btn').onclick = () => {
+      App.closeModal('modal-customer-quick');
+      App.nav('customers');
+      setTimeout(() => {
+        document.getElementById('cust-search').value = c.name||'';
+        App.renderCustomers();
+      }, 200);
+    };
+
+    this.openModal('modal-customer-quick');
+    lucide.createIcons();
   },
 
   // ---- Intake Form ----
