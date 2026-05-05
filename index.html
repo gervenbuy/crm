@@ -1449,6 +1449,19 @@ const gid = () => '_' + Math.random().toString(36).substr(2,9);
 const fmt$ = n => { const v = parseInt(n)||0; return v===0 ? '—' : '$' + v.toLocaleString(); };
 const fmtDate = s => { if(!s) return '—'; const d=new Date(s); return isNaN(d)?'—':d.toLocaleDateString('zh-TW'); };
 
+// 補回被 Google Sheet 吃掉的開頭 0（台灣手機09開頭、市話02-09開頭）
+const fmtPhone = p => {
+  if(!p) return '';
+  const s = String(p).trim();
+  // 已有 0 開頭、或是國際碼 + 開頭、或長度超過 10 碼 → 不動
+  if(!s || s.startsWith('0') || s.startsWith('+') || s.length > 10) return s;
+  // 9 碼數字 → 補 0（09xxxxxxxx）
+  if(/^\d{9}$/.test(s)) return '0' + s;
+  // 8 碼數字 → 可能是市話去掉 0（如 212345678 → 0212345678 台北）
+  if(/^\d{8}$/.test(s)) return '0' + s;
+  return s;
+};
+
 function loading(on, txt='同步中…') {
   const el = document.getElementById('loading-overlay');
   el.style.display = on ? 'flex' : 'none';
@@ -1577,7 +1590,7 @@ const App = {
     const q = (document.getElementById('cust-search').value||'').toLowerCase();
     const filt = document.getElementById('cust-filter').value;
     const list = Store.db.customers.filter(c => {
-      const mq = !q || c.name.toLowerCase().includes(q) || (c.phone||'').includes(q) || (c.plate||'').toLowerCase().includes(q) || (c.vin||'').toLowerCase().includes(q);
+      const mq = !q || c.name.toLowerCase().includes(q) || (c.phone||'').includes(q) || fmtPhone(c.phone).includes(q) || (c.plate||'').toLowerCase().includes(q) || (c.vin||'').toLowerCase().includes(q);
       const mf = filt==='all' || c.category===filt;
       return mq && mf;
     });
@@ -1591,7 +1604,7 @@ const App = {
       tr.innerHTML = `
         <td><div style="font-weight:600;font-size:13.5px">${c.name}</div><div style="font-size:11px;color:var(--muted);margin-top:1px">${catBadge}</div></td>
         <td><div style="font-size:13px">${c.model||'—'}</div><div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted)">${c.plate||'未填車牌'}</div></td>
-        <td style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted)">${c.phone||'—'}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted)">${fmtPhone(c.phone)||'—'}</td>
         <td>${wBadge}</td>
         <td style="font-size:12px;color:var(--muted)">${lastR ? fmtDate(lastR.date) : '無紀錄'}</td>
         <td style="text-align:right">
@@ -1620,7 +1633,7 @@ const App = {
       if(!c) return;
       document.getElementById('cf-id').value = c.id;
       document.getElementById('cf-name').value = c.name||'';
-      document.getElementById('cf-phone').value = c.phone||'';
+      document.getElementById('cf-phone').value = fmtPhone(c.phone)||'';
       document.getElementById('cf-address').value = c.address||'';
       document.getElementById('cf-notes').value = c.notes||'';
       document.getElementById('cf-category').value = c.category||'purchase';
@@ -1638,7 +1651,7 @@ const App = {
 
   saveCustomer() {
     const n = document.getElementById('cf-name').value.trim();
-    const p = document.getElementById('cf-phone').value.trim();
+    const p = fmtPhone(document.getElementById('cf-phone').value.trim()); // 補回開頭 0
     if(!n||!p) { alert('姓名和電話為必填'); return; }
     const id = document.getElementById('cf-id').value || gid();
     const data = {
@@ -1705,8 +1718,8 @@ const App = {
             <!-- 客戶聯絡資訊（快速查看）-->
             <div style="display:inline-flex;align-items:center;gap:12px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:6px 12px;margin-bottom:8px;flex-wrap:wrap">
               ${c.phone ? `
-                <a href="tel:${c.phone}" style="display:flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none;font-family:'JetBrains Mono',monospace" title="點擊撥打">
-                  <i data-lucide="phone" width="13" height="13"></i>${c.phone}
+                <a href="tel:${fmtPhone(c.phone)}" style="display:flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none;font-family:'JetBrains Mono',monospace" title="點擊撥打">
+                  <i data-lucide="phone" width="13" height="13"></i>${fmtPhone(c.phone)}
                 </a>` : `<span style="font-size:12px;color:var(--muted)">無電話</span>`}
               ${c.notes && c.notes.includes('LINE:') ? `
                 <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:#16a34a;font-weight:600">
@@ -1981,7 +1994,8 @@ const App = {
         ${extra}
       </div>` : '';
 
-    const phoneLink = c.phone ? `<a href="tel:${c.phone}" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none;font-family:inherit;display:inline-flex;align-items:center;gap:4px"><i data-lucide="phone-call" width="11" height="11"></i>撥打</a>` : '';
+    const phoneFormatted = fmtPhone(c.phone);
+    const phoneLink = phoneFormatted ? `<a href="tel:${phoneFormatted}" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none;font-family:inherit;display:inline-flex;align-items:center;gap:4px"><i data-lucide="phone-call" width="11" height="11"></i>撥打</a>` : '';
 
     const lineId = c.notes?.match(/LINE:\s*(\S+)/)?.[1];
     const lineLink = lineId ? `<a href="https://line.me/ti/p/~${lineId}" target="_blank" style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none;font-family:inherit;display:inline-flex;align-items:center;gap:4px"><i data-lucide="message-circle" width="11" height="11"></i>LINE</a>` : '';
@@ -1998,7 +2012,7 @@ const App = {
         </div>
       </div>
       <div style="padding:0 2px">
-        ${row('phone','電話',c.phone,phoneLink)}
+        ${row('phone','電話',phoneFormatted,phoneLink)}
         ${row('message-circle','LINE',lineId,lineLink)}
         ${row('map-pin','地址',c.address)}
         ${row('zap','車型',c.model+(c.specs?' · '+c.specs:''))}
