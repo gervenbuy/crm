@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>迪特軍 EV · 零件成本資料庫</title>
+<title>電車男電能車 · 零件成本資料庫</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -200,7 +200,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text
     </div>
     <div>
       <div class="brand-title">零件成本資料庫</div>
-      <div class="brand-sub">迪特軍 EV · Parts & Pricing</div>
+      <div class="brand-sub">電車男電能車 · Parts & Pricing</div>
     </div>
   </div>
   <div class="topbar-tabs">
@@ -1120,7 +1120,7 @@ function copyQuote() {
   const totalSell = Math.round(totalCost * markup);
   const lines = cart.map(c => `• ${c.name} × ${c.qty}  ${fmt$(c.cost * c.qty * markup / totalCost * totalSell / totalSell * c.cost * c.qty / totalCost * markup)}`);
   // Simple: just list items with sell price per unit
-  const text = `【迪特軍 EV 維修報價】\n` +
+  const text = `【電車男電能車 維修報價】\n` +
     cart.map(c => `• ${c.name} × ${c.qty}　${fmt$(Math.round(c.cost * c.qty * markup))}`).join('\n') +
     `\n${'─'.repeat(24)}\n合計：${fmt$(totalSell)}\n（含零件 + 工資，報價有效 7 天）`;
   navigator.clipboard.writeText(text).then(() => toast('✓ 報價單已複製，可直接貼到 LINE'));

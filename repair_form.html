@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>迪特軍 EV · 維修預約登記</title>
+<title>電車男電能車 · 維修預約登記</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -224,7 +224,7 @@ body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: va
 <div class="page-header">
   <div class="header-badge">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-    迪特軍 EV · 電動車專業維修
+    電車男電能車 · 電動車專業維修
   </div>
   <div class="header-title">維修預約登記</div>
   <div class="header-sub">填寫後我們將盡快與您聯繫確認維修時間</div>
@@ -290,7 +290,7 @@ body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: va
     </div>
 
     <div class="notice-box">
-      <strong>隱私聲明：</strong>您填寫的資料僅供迪特軍 EV 維修服務使用，不會提供給第三方。
+      <strong>隱私聲明：</strong>您填寫的資料僅供電車男電能車 維修服務使用，不會提供給第三方。
     </div>
 
     <div class="nav-btns">
@@ -517,7 +517,7 @@ body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: va
         <textarea id="f-appt-note" placeholder="例如：需要拖車服務、需要代步車、特殊停車位置說明…" style="min-height:70px"></textarea>
       </div>
       <div class="field" style="margin-top:4px">
-        <label>如何得知迪特軍 EV？<span class="opt">選填</span></label>
+        <label>如何得知電車男電能車？<span class="opt">選填</span></label>
         <select id="f-source">
           <option value="">請選擇</option>
           <option value="friend">朋友推薦</option>
@@ -579,7 +579,7 @@ body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: va
     </div>
 
     <div class="notice-box" style="margin-bottom:16px">
-      送出後，系統將自動通知迪特軍 EV，我們會在 24 小時內確認預約時間。
+      送出後，系統將自動通知電車男電能車，我們會在 24 小時內確認預約時間。
     </div>
 
     <div class="nav-btns">
@@ -608,7 +608,7 @@ body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: va
 
     <!-- 備援區塊：只在 API 失敗時顯示 -->
     <div id="success-offline-block" style="display:none;margin-top:8px">
-      <div style="font-size:12px;color:#64748b;margin-bottom:8px">如 24 小時內未收到聯繫，請將以下連結傳給迪特軍 EV：</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:8px">如 24 小時內未收到聯繫，請將以下連結傳給電車男電能車：</div>
       <button class="copy-btn" id="fallback-copy-btn" onclick="copyFallbackLink()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         複製備援連結
@@ -828,7 +828,7 @@ function showSuccess(orderNo, online, offlineData) {
     statusEl.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;justify-content:center;color:#15803d;font-size:13.5px;font-weight:600">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        資料已成功送達迪特軍 EV 系統
+        資料已成功送達電車男電能車 系統
       </div>
       <p style="font-size:12.5px;color:#64748b;margin-top:6px">我們將在 24 小時內與您聯繫確認時間，請保持電話暢通。</p>`;
     if (offlineEl) offlineEl.style.display = 'none';
@@ -836,7 +836,7 @@ function showSuccess(orderNo, online, offlineData) {
     statusEl.innerHTML = `
       <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#7c2d12;text-align:left">
         <strong>⚠ 網路暫時無法連線</strong><br>
-        您的資料已暫存。請截圖保存單號，並將下方連結傳給迪特軍 EV。
+        您的資料已暫存。請截圖保存單號，並將下方連結傳給電車男電能車。
       </div>`;
     // 儲存到 localStorage 作為備援
     if (offlineData) {
@@ -846,7 +846,7 @@ function showSuccess(orderNo, online, offlineData) {
       // 建立手動匯入連結作為備援
       const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(offlineData))));
       const base = window.location.href.split('/').slice(0,-1).join('/');
-      window._fallbackLink = `${base}/diter_crm_v3.html#import=${encoded}`;
+      window._fallbackLink = `${base}/index.html#import=${encoded}`;
       if (offlineEl) offlineEl.style.display = '';
     }
   }
